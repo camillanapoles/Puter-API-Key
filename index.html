@@ -1,777 +1,923 @@
 ﻿<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Puter API Key Studio</title>
-    <link rel="apple-touch-icon" sizes="180x180" href="favicon_io/apple-touch-icon.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon_io/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon_io/favicon-16x16.png" />
-    <link rel="shortcut icon" href="favicon_io/favicon.ico" />
-    <link rel="manifest" href="favicon_io/site.webmanifest" />
-    <meta name="theme-color" content="#ffffff" />
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
-      :root {
-        --bg-1: #e2f4ec;
-        --bg-2: #f8efe1;
-        --bg-3: #f6fbff;
-        --panel: rgba(255, 255, 255, 0.82);
-        --panel-border: rgba(22, 52, 66, 0.16);
-        --ink: #112433;
-        --muted: #41586a;
-        --accent: #0e8355;
-        --accent-2: #0a6ca9;
-        --danger: #b83737;
-        --mono: "IBM Plex Mono", Consolas, monospace;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Puter API Key Studio</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon_io/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon_io/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon_io/favicon-16x16.png" />
+  <link rel="shortcut icon" href="favicon_io/favicon.ico" />
+  <link rel="manifest" href="favicon_io/site.webmanifest" />
+  <meta name="theme-color" content="#ffffff" />
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
-      * {
-        box-sizing: border-box;
-      }
+    :root {
+      --bg-1: #e2f4ec;
+      --bg-2: #f8efe1;
+      --bg-3: #f6fbff;
+      --panel: rgba(255, 255, 255, 0.82);
+      --panel-border: rgba(22, 52, 66, 0.16);
+      --ink: #112433;
+      --muted: #41586a;
+      --accent: #0e8355;
+      --accent-2: #0a6ca9;
+      --danger: #b83737;
+      --mono: "IBM Plex Mono", Consolas, monospace;
+    }
 
-      body {
-        margin: 0;
-        font-family: "Space Grotesk", sans-serif;
-        color: var(--ink);
-        background:
-          radial-gradient(circle at 8% 12%, rgba(14, 131, 85, 0.2), transparent 30%),
-          radial-gradient(circle at 88% 9%, rgba(10, 108, 169, 0.17), transparent 25%),
-          linear-gradient(130deg, var(--bg-1), var(--bg-2) 56%, var(--bg-3));
-        min-height: 100vh;
-      }
+    * {
+      box-sizing: border-box;
+    }
 
-      .page {
-        max-width: 1120px;
-        margin: 0 auto;
-        padding: 24px 16px 48px;
-      }
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 12%, rgba(14, 131, 85, 0.2), transparent 30%),
+        radial-gradient(circle at 88% 9%, rgba(10, 108, 169, 0.17), transparent 25%),
+        linear-gradient(130deg, var(--bg-1), var(--bg-2) 56%, var(--bg-3));
+      min-height: 100vh;
+    }
 
-      .topbar {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-      }
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
 
-      .eyebrow {
-        margin: 0;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--muted);
-      }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
 
-      .title {
-        margin: 0;
-        font-size: clamp(1.5rem, 2.5vw, 2rem);
-        letter-spacing: 0.02em;
-      }
+    .eyebrow {
+      margin: 0;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
 
-      .subtitle {
-        margin: 8px 0 0;
-        color: var(--muted);
-        font-size: 0.95rem;
-        max-width: 660px;
-      }
+    .title {
+      margin: 0;
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      letter-spacing: 0.02em;
+    }
 
-      .header-pills {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      max-width: 660px;
+    }
 
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--panel-border);
-        border-radius: 16px;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 20px 50px rgba(16, 43, 58, 0.1);
-        padding: 16px;
-      }
+    .header-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
-      .workspace {
-        background: var(--panel);
-        border: 1px solid var(--panel-border);
-        border-radius: 16px;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 20px 50px rgba(16, 43, 58, 0.1);
-        padding: 16px;
-      }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 20px 50px rgba(16, 43, 58, 0.1);
+      padding: 16px;
+    }
 
-      .tab-nav {
-        margin: 12px 0;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
+    .workspace {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 20px 50px rgba(16, 43, 58, 0.1);
+      padding: 16px;
+    }
 
-      .tab-btn {
-        border: 1px solid rgba(17, 36, 51, 0.2);
-        background: rgba(255, 255, 255, 0.72);
-        color: var(--ink);
-        border-radius: 12px;
-        padding: 10px 14px;
-        font: inherit;
-        font-weight: 700;
-        cursor: pointer;
-      }
+    .tab-nav {
+      margin: 12px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
 
-      .tab-btn.is-active {
-        color: #fff;
-        border-color: rgba(14, 131, 85, 0.42);
-        background: linear-gradient(120deg, var(--accent), #14a06d);
-      }
+    .tab-btn {
+      border: 1px solid rgba(17, 36, 51, 0.2);
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--ink);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
-      .tab-panel {
-        display: none;
-      }
+    .tab-btn.is-active {
+      color: #fff;
+      border-color: rgba(14, 131, 85, 0.42);
+      background: linear-gradient(120deg, var(--accent), #14a06d);
+    }
 
-      .tab-panel.is-active {
-        display: grid;
-        gap: 12px;
-      }
+    .tab-panel {
+      display: none;
+    }
 
-      .panel-head h2 {
-        margin: 0;
-      }
+    .tab-panel.is-active {
+      display: grid;
+      gap: 12px;
+    }
 
-      .panel-head p {
-        margin: 6px 0 0;
-        color: var(--muted);
-      }
+    .panel-head h2 {
+      margin: 0;
+    }
 
+    .panel-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    input,
+    textarea,
+    select,
+    button {
+      font: inherit;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid rgba(17, 36, 51, 0.2);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 108px;
+      resize: vertical;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: linear-gradient(120deg, var(--accent), #14a06d);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: linear-gradient(120deg, var(--accent-2), #2f85b7);
+      color: #fff;
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(17, 36, 51, 0.2);
+      color: var(--ink);
+    }
+
+    .btn-danger {
+      background: rgba(184, 55, 55, 0.1);
+      border: 1px solid rgba(184, 55, 55, 0.3);
+      color: var(--danger);
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .row>* {
+      flex: 1 1 170px;
+    }
+
+    .status {
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .status-banner {
+      margin: 12px 0 4px;
+      font-size: 0.92rem;
+      color: #11523f;
+      border: 1px solid rgba(14, 131, 85, 0.25);
+      background: rgba(14, 131, 85, 0.1);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .session-pill {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(14, 131, 85, 0.3);
+    }
+
+    .callout {
+      border: 1px dashed rgba(17, 36, 51, 0.24);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.55);
+      color: var(--muted);
+      padding: 10px 12px;
+    }
+
+    .new-key {
+      margin-top: 8px;
+      font-family: var(--mono);
+      background: #0f1f2f;
+      color: #dcefff;
+      border-radius: 12px;
+      padding: 10px;
+      word-break: break-all;
+    }
+
+    .key-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .key-item {
+      border: 1px solid rgba(17, 36, 51, 0.17);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .key-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .key-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .key-name {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .key-mask {
+      margin: 4px 0 0;
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .small {
+      margin: 4px 0 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    pre {
+      margin: 0;
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 140px;
+      background: #0f1f2f;
+      color: #d8f1ff;
+      font-family: var(--mono);
+      white-space: pre-wrap;
+    }
+
+    .analytics-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .analytics-live {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .analytics-live[data-tone="ok"] {
+      color: #0b6f4a;
+    }
+
+    .analytics-live[data-tone="error"] {
+      color: var(--danger);
+    }
+
+    .analytics-summary {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+    }
+
+    .analytics-card {
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(17, 36, 51, 0.18);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .analytics-card-label {
+      margin: 0;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .analytics-card-value {
+      margin: 6px 0 0;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .analytics-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .analytics-chip {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      border: 1px solid rgba(17, 36, 51, 0.2);
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+    }
+
+    .analytics-chip.is-success {
+      border-color: rgba(14, 131, 85, 0.35);
+      color: #0b6f4a;
+    }
+
+    .analytics-chip.is-error {
+      border-color: rgba(184, 55, 55, 0.38);
+      color: var(--danger);
+    }
+
+    .analytics-table-wrap {
+      border: 1px solid rgba(17, 36, 51, 0.18);
+      border-radius: 12px;
+      overflow: auto;
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    .analytics-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+    }
+
+    .analytics-table th,
+    .analytics-table td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(17, 36, 51, 0.09);
+      vertical-align: top;
+    }
+
+    .analytics-table th {
+      background: rgba(17, 36, 51, 0.07);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.72rem;
+    }
+
+    .status-pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      border: 1px solid rgba(17, 36, 51, 0.2);
+    }
+
+    .status-pill.is-success {
+      border-color: rgba(14, 131, 85, 0.35);
+      color: #0b6f4a;
+    }
+
+    .status-pill.is-error {
+      border-color: rgba(184, 55, 55, 0.38);
+      color: var(--danger);
+    }
+
+    .account-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .account-item {
+      border: 1px solid rgba(17, 36, 51, 0.17);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .account-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .account-label {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .account-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .account-token {
+      margin: 4px 0 0;
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .health-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    .health-badge.is-healthy {
+      color: #0b6f4a;
+      background: rgba(14, 131, 85, 0.12);
+      border: 1px solid rgba(14, 131, 85, 0.3);
+    }
+
+    .health-badge.is-failing {
+      color: var(--danger);
+      background: rgba(184, 55, 55, 0.1);
+      border: 1px solid rgba(184, 55, 55, 0.3);
+    }
+
+    .health-badge.is-cooldown {
+      color: #b07e18;
+      background: rgba(176, 126, 24, 0.1);
+      border: 1px solid rgba(176, 126, 24, 0.3);
+    }
+
+    .pool-health {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(14, 131, 85, 0.08);
+      border: 1px solid rgba(14, 131, 85, 0.2);
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: #11523f;
+    }
+
+    .pool-health.has-errors {
+      background: rgba(184, 55, 55, 0.08);
+      border-color: rgba(184, 55, 55, 0.2);
+      color: var(--danger);
+    }
+
+    .add-account-form {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px dashed rgba(17, 36, 51, 0.24);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    @media (max-width: 920px) {
       .grid {
-        display: grid;
-        grid-template-columns: 1.1fr 0.9fr;
-        gap: 16px;
-      }
-
-      .stack {
-        display: grid;
-        gap: 12px;
-      }
-
-      .label {
-        display: block;
-        margin-bottom: 6px;
-        font-weight: 600;
-      }
-
-      input,
-      textarea,
-      select,
-      button {
-        font: inherit;
-      }
-
-      input,
-      textarea,
-      select {
-        width: 100%;
-        border: 1px solid rgba(17, 36, 51, 0.2);
-        border-radius: 12px;
-        padding: 10px 12px;
-        background: rgba(255, 255, 255, 0.8);
-        color: var(--ink);
-      }
-
-      textarea {
-        min-height: 108px;
-        resize: vertical;
-      }
-
-      button {
-        border: 0;
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-weight: 700;
-        cursor: pointer;
-      }
-
-      .btn-primary {
-        background: linear-gradient(120deg, var(--accent), #14a06d);
-        color: #fff;
-      }
-
-      .btn-secondary {
-        background: linear-gradient(120deg, var(--accent-2), #2f85b7);
-        color: #fff;
-      }
-
-      .btn-ghost {
-        background: rgba(255, 255, 255, 0.75);
-        border: 1px solid rgba(17, 36, 51, 0.2);
-        color: var(--ink);
-      }
-
-      .btn-danger {
-        background: rgba(184, 55, 55, 0.1);
-        border: 1px solid rgba(184, 55, 55, 0.3);
-        color: var(--danger);
-      }
-
-      .row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .row > * {
-        flex: 1 1 170px;
-      }
-
-      .status {
-        font-size: 0.92rem;
-        color: var(--muted);
-      }
-
-      .status-banner {
-        margin: 12px 0 4px;
-        font-size: 0.92rem;
-        color: #11523f;
-        border: 1px solid rgba(14, 131, 85, 0.25);
-        background: rgba(14, 131, 85, 0.1);
-        border-radius: 12px;
-        padding: 10px 12px;
-      }
-
-      .session-pill {
-        font-family: var(--mono);
-        font-size: 0.8rem;
-        padding: 6px 10px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.7);
-        border: 1px solid rgba(14, 131, 85, 0.3);
-      }
-
-      .callout {
-        border: 1px dashed rgba(17, 36, 51, 0.24);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.55);
-        color: var(--muted);
-        padding: 10px 12px;
-      }
-
-      .new-key {
-        margin-top: 8px;
-        font-family: var(--mono);
-        background: #0f1f2f;
-        color: #dcefff;
-        border-radius: 12px;
-        padding: 10px;
-        word-break: break-all;
-      }
-
-      .key-list {
-        margin: 0;
-        padding: 0;
-        list-style: none;
-        display: grid;
-        gap: 8px;
-      }
-
-      .key-item {
-        border: 1px solid rgba(17, 36, 51, 0.17);
-        border-radius: 12px;
-        padding: 10px;
-        background: rgba(255, 255, 255, 0.72);
-      }
-
-      .key-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .key-actions {
-        display: flex;
-        gap: 6px;
-      }
-
-      .key-name {
-        margin: 0;
-        font-size: 1rem;
-      }
-
-      .key-mask {
-        margin: 4px 0 0;
-        font-family: var(--mono);
-        font-size: 0.84rem;
-        color: var(--muted);
-      }
-
-      .small {
-        margin: 4px 0 0;
-        font-size: 0.8rem;
-        color: var(--muted);
-      }
-
-      pre {
-        margin: 0;
-        border-radius: 12px;
-        padding: 12px;
-        min-height: 140px;
-        background: #0f1f2f;
-        color: #d8f1ff;
-        font-family: var(--mono);
-        white-space: pre-wrap;
-      }
-
-      .analytics-meta {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .analytics-live {
-        margin: 0;
-        font-size: 0.85rem;
-        color: var(--muted);
-      }
-
-      .analytics-live[data-tone="ok"] {
-        color: #0b6f4a;
-      }
-
-      .analytics-live[data-tone="error"] {
-        color: var(--danger);
+        grid-template-columns: 1fr;
       }
 
       .analytics-summary {
-        display: grid;
-        gap: 10px;
-        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
       }
+    }
+  </style>
+  <script src="https://js.puter.com/v2/"></script>
+</head>
 
-      .analytics-card {
-        background: rgba(255, 255, 255, 0.78);
-        border: 1px solid rgba(17, 36, 51, 0.18);
-        border-radius: 12px;
-        padding: 10px 12px;
-      }
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Puter Gateway</p>
+        <h1 class="title">Puter API Key Studio</h1>
+        <p class="subtitle">All tools are split into focused tabs so key management and testing stay clean.</p>
+      </div>
+      <div class="header-pills">
+        <span id="sessionPill" class="session-pill">Not signed in</span>
+        <span id="keyCountPill" class="session-pill">0 keys</span>
+      </div>
+    </header>
 
-      .analytics-card-label {
-        margin: 0;
-        font-size: 0.76rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--muted);
-      }
+    <p class="status-banner" id="authStatus">
+      Sign in with Puter, or configure PUTER_AUTH_TOKEN to use keys without sign-in.
+    </p>
 
-      .analytics-card-value {
-        margin: 6px 0 0;
-        font-size: 1.4rem;
-        font-weight: 700;
-      }
+    <nav class="tab-nav" role="tablist" aria-label="API Studio Tabs">
+      <button class="tab-btn is-active" data-tab-target="auth" aria-selected="true">Auth</button>
+      <button class="tab-btn" data-tab-target="accounts" aria-selected="false">Accounts</button>
+      <button class="tab-btn" data-tab-target="keys" aria-selected="false">Keys</button>
+      <button class="tab-btn" data-tab-target="playground" aria-selected="false">Playground</button>
+      <button class="tab-btn" data-tab-target="templates" aria-selected="false">Templates</button>
+      <button class="tab-btn" data-tab-target="analytics" aria-selected="false">Analytics</button>
+    </nav>
 
-      .analytics-breakdown {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
+    <main class="workspace">
+      <section class="tab-panel is-active" data-tab-panel="auth">
+        <div class="panel-head">
+          <h2>Authentication</h2>
+          <p>Sign in once, then create and use your API keys across all tabs.</p>
+        </div>
+        <div class="row">
+          <button id="signInBtn" class="btn-primary">Sign In With Puter</button>
+          <button id="signOutBtn" class="btn-ghost">Sign Out</button>
+        </div>
+        <p class="small" id="userLine"></p>
+        <div class="callout">Session stays in this browser via local storage. Sign out to clear it.</div>
+      </section>
 
-      .analytics-chip {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 5px 10px;
-        font-family: var(--mono);
-        font-size: 0.78rem;
-        border: 1px solid rgba(17, 36, 51, 0.2);
-        background: rgba(255, 255, 255, 0.78);
-        color: var(--ink);
-      }
+      <section class="tab-panel" data-tab-panel="accounts">
+        <div class="panel-head">
+          <h2>API Fallback Accounts</h2>
+          <p>Add multiple Puter.js accounts. When one fails, the API automatically tries the next. All accounts are
+            looped through on failure.</p>
+        </div>
 
-      .analytics-chip.is-success {
-        border-color: rgba(14, 131, 85, 0.35);
-        color: #0b6f4a;
-      }
+        <div id="poolHealth" class="pool-health">Loading pool health...</div>
 
-      .analytics-chip.is-error {
-        border-color: rgba(184, 55, 55, 0.38);
-        color: var(--danger);
-      }
+        <div class="add-account-form">
+          <button id="signInAddAccountBtn" class="btn-primary" style="font-size:1rem;padding:12px 18px">Sign In with
+            Puter to Add Account</button>
+          <div class="callout" style="font-size:0.85rem">Click above to sign in with a different Puter account. The auth
+            token is detected automatically.</div>
+          <details>
+            <summary style="cursor:pointer;font-weight:600;font-size:0.9rem;color:var(--muted)">Or paste a token
+              manually</summary>
+            <div style="display:grid;gap:10px;margin-top:10px">
+              <div>
+                <label class="label" for="accountLabel">Account Label</label>
+                <input id="accountLabel" placeholder="My Second Account" />
+              </div>
+              <div>
+                <label class="label" for="accountToken">Puter Auth Token</label>
+                <input id="accountToken" type="password" placeholder="Paste Puter auth token here" />
+              </div>
+              <div class="row">
+                <button id="addAccountBtn" class="btn-secondary">Add Account</button>
+              </div>
+            </div>
+          </details>
+          <div class="row">
+            <button id="refreshAccountsBtn" class="btn-ghost">Refresh</button>
+          </div>
+        </div>
 
-      .analytics-table-wrap {
-        border: 1px solid rgba(17, 36, 51, 0.18);
-        border-radius: 12px;
-        overflow: auto;
-        background: rgba(255, 255, 255, 0.75);
-      }
+        <p id="accountStatus" class="status"></p>
+        <ul id="accountList" class="account-list"></ul>
+      </section>
 
-      .analytics-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 760px;
-        font-family: var(--mono);
-        font-size: 0.78rem;
-      }
-
-      .analytics-table th,
-      .analytics-table td {
-        padding: 8px 10px;
-        text-align: left;
-        border-bottom: 1px solid rgba(17, 36, 51, 0.09);
-        vertical-align: top;
-      }
-
-      .analytics-table th {
-        background: rgba(17, 36, 51, 0.07);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        font-size: 0.72rem;
-      }
-
-      .status-pill {
-        display: inline-block;
-        border-radius: 999px;
-        padding: 2px 8px;
-        border: 1px solid rgba(17, 36, 51, 0.2);
-      }
-
-      .status-pill.is-success {
-        border-color: rgba(14, 131, 85, 0.35);
-        color: #0b6f4a;
-      }
-
-      .status-pill.is-error {
-        border-color: rgba(184, 55, 55, 0.38);
-        color: var(--danger);
-      }
-
-      @media (max-width: 920px) {
-        .grid {
-          grid-template-columns: 1fr;
-        }
-
-        .analytics-summary {
-          grid-template-columns: repeat(2, minmax(120px, 1fr));
-        }
-      }
-    </style>
-    <script src="https://js.puter.com/v2/"></script>
-  </head>
-  <body>
-    <div class="page">
-      <header class="topbar">
+      <section class="tab-panel" data-tab-panel="keys">
+        <div class="panel-head">
+          <h2>Create + Manage Keys</h2>
+          <p>Create random `sk-...` keys, copy any key, and revoke old keys.</p>
+        </div>
         <div>
-          <p class="eyebrow">Puter Gateway</p>
-          <h1 class="title">Puter API Key Studio</h1>
-          <p class="subtitle">All tools are split into focused tabs so key management and testing stay clean.</p>
+          <label class="label" for="keyName">Key Name</label>
+          <input id="keyName" placeholder="My Production Key" />
         </div>
-        <div class="header-pills">
-          <span id="sessionPill" class="session-pill">Not signed in</span>
-          <span id="keyCountPill" class="session-pill">0 keys</span>
+        <button id="createKeyBtn" class="btn-secondary">Generate Random sk- Key</button>
+        <div id="newKeyBox" class="new-key" style="display: none"></div>
+        <div class="row">
+          <button id="copyNewKeyBtn" class="btn-ghost" style="display: none">Copy New Key</button>
+          <button id="refreshKeysBtn" class="btn-ghost">Refresh Keys</button>
         </div>
-      </header>
+        <ul id="keyList" class="key-list"></ul>
+      </section>
 
-      <p class="status-banner" id="authStatus">
-        Sign in with Puter, or configure PUTER_AUTH_TOKEN to use keys without sign-in.
-      </p>
+      <section class="tab-panel" data-tab-panel="playground">
+        <div class="panel-head">
+          <h2>API Playground</h2>
+          <p>Send quick chat requests with your generated key.</p>
+        </div>
+        <div>
+          <label class="label" for="baseUrl">Gateway URL</label>
+          <input id="baseUrl" value="https://puter-api-key.onrender.com" />
+        </div>
+        <div>
+          <label class="label" for="useApiKey">Use API Key</label>
+          <input id="useApiKey" placeholder="Paste one sk- key or create above and paste." />
+        </div>
+        <div>
+          <label class="label" for="model">Model</label>
+          <input id="model" value="gpt-5-nano" />
+        </div>
+        <div>
+          <label class="label" for="prompt">Prompt</label>
+          <textarea id="prompt">Tell me one benefit of using API key management.</textarea>
+        </div>
+        <button id="sendBtn" class="btn-primary">Send Request</button>
+        <label class="label">Response</label>
+        <pre id="output">Waiting...</pre>
+      </section>
 
-      <nav class="tab-nav" role="tablist" aria-label="API Studio Tabs">
-        <button class="tab-btn is-active" data-tab-target="auth" aria-selected="true">Auth</button>
-        <button class="tab-btn" data-tab-target="keys" aria-selected="false">Keys</button>
-        <button class="tab-btn" data-tab-target="playground" aria-selected="false">Playground</button>
-        <button class="tab-btn" data-tab-target="templates" aria-selected="false">Templates</button>
-        <button class="tab-btn" data-tab-target="analytics" aria-selected="false">Analytics</button>
-      </nav>
+      <section class="tab-panel" data-tab-panel="templates">
+        <div class="panel-head">
+          <h2>Terminal Templates</h2>
+          <p>Copy ready commands for Bash, PowerShell, or CMD.</p>
+        </div>
+        <div>
+          <label class="label" for="templateType">Template Type</label>
+          <select id="templateType">
+            <option value="bash">Bash (curl)</option>
+            <option value="powershell">PowerShell</option>
+            <option value="cmd">Windows CMD (curl)</option>
+          </select>
+        </div>
+        <pre id="templateCode">Generating template...</pre>
+        <button id="copyTemplateBtn" class="btn-ghost">Copy Template Code</button>
+      </section>
 
-      <main class="workspace">
-        <section class="tab-panel is-active" data-tab-panel="auth">
-          <div class="panel-head">
-            <h2>Authentication</h2>
-            <p>Sign in once, then create and use your API keys across all tabs.</p>
-          </div>
-          <div class="row">
-            <button id="signInBtn" class="btn-primary">Sign In With Puter</button>
-            <button id="signOutBtn" class="btn-ghost">Sign Out</button>
-          </div>
-          <p class="small" id="userLine"></p>
-          <div class="callout">Session stays in this browser via local storage. Sign out to clear it.</div>
-        </section>
+      <section class="tab-panel" data-tab-panel="analytics">
+        <div class="panel-head">
+          <h2>Response Analytics</h2>
+          <p>Real-time status tracking for gateway responses, including error reasons.</p>
+        </div>
 
-        <section class="tab-panel" data-tab-panel="keys">
-          <div class="panel-head">
-            <h2>Create + Manage Keys</h2>
-            <p>Create random `sk-...` keys, copy any key, and revoke old keys.</p>
-          </div>
-          <div>
-            <label class="label" for="keyName">Key Name</label>
-            <input id="keyName" placeholder="My Production Key" />
-          </div>
-          <button id="createKeyBtn" class="btn-secondary">Generate Random sk- Key</button>
-          <div id="newKeyBox" class="new-key" style="display: none"></div>
-          <div class="row">
-            <button id="copyNewKeyBtn" class="btn-ghost" style="display: none">Copy New Key</button>
-            <button id="refreshKeysBtn" class="btn-ghost">Refresh Keys</button>
-          </div>
-          <ul id="keyList" class="key-list"></ul>
-        </section>
+        <div class="analytics-meta">
+          <p id="analyticsLiveState" class="analytics-live" data-tone="idle">Live stream: connecting...</p>
+          <button id="refreshAnalyticsBtn" class="btn-ghost">Refresh Snapshot</button>
+        </div>
 
-        <section class="tab-panel" data-tab-panel="playground">
-          <div class="panel-head">
-            <h2>API Playground</h2>
-            <p>Send quick chat requests with your generated key.</p>
-          </div>
-          <div>
-            <label class="label" for="baseUrl">Gateway URL</label>
-            <input id="baseUrl" value="https://puter-api-key.onrender.com" />
-          </div>
-          <div>
-            <label class="label" for="useApiKey">Use API Key</label>
-            <input id="useApiKey" placeholder="Paste one sk- key or create above and paste." />
-          </div>
-          <div>
-            <label class="label" for="model">Model</label>
-            <input id="model" value="gpt-5-nano" />
-          </div>
-          <div>
-            <label class="label" for="prompt">Prompt</label>
-            <textarea id="prompt">Tell me one benefit of using API key management.</textarea>
-          </div>
-          <button id="sendBtn" class="btn-primary">Send Request</button>
-          <label class="label">Response</label>
-          <pre id="output">Waiting...</pre>
-        </section>
+        <div class="analytics-summary">
+          <article class="analytics-card">
+            <p class="analytics-card-label">Total</p>
+            <p class="analytics-card-value" id="analyticsTotal">0</p>
+          </article>
+          <article class="analytics-card">
+            <p class="analytics-card-label">HTTP 200</p>
+            <p class="analytics-card-value" id="analytics200">0</p>
+          </article>
+          <article class="analytics-card">
+            <p class="analytics-card-label">Success</p>
+            <p class="analytics-card-value" id="analyticsSuccess">0</p>
+          </article>
+          <article class="analytics-card">
+            <p class="analytics-card-label">Errors</p>
+            <p class="analytics-card-value" id="analyticsError">0</p>
+          </article>
+        </div>
 
-        <section class="tab-panel" data-tab-panel="templates">
-          <div class="panel-head">
-            <h2>Terminal Templates</h2>
-            <p>Copy ready commands for Bash, PowerShell, or CMD.</p>
-          </div>
-          <div>
-            <label class="label" for="templateType">Template Type</label>
-            <select id="templateType">
-              <option value="bash">Bash (curl)</option>
-              <option value="powershell">PowerShell</option>
-              <option value="cmd">Windows CMD (curl)</option>
-            </select>
-          </div>
-          <pre id="templateCode">Generating template...</pre>
-          <button id="copyTemplateBtn" class="btn-ghost">Copy Template Code</button>
-        </section>
+        <div>
+          <p class="label">Status Breakdown</p>
+          <div id="analyticsStatusBreakdown" class="analytics-breakdown"></div>
+        </div>
 
-        <section class="tab-panel" data-tab-panel="analytics">
-          <div class="panel-head">
-            <h2>Response Analytics</h2>
-            <p>Real-time status tracking for gateway responses, including error reasons.</p>
-          </div>
+        <div class="analytics-table-wrap">
+          <table class="analytics-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Method</th>
+                <th>Path</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsTableBody"></tbody>
+          </table>
+        </div>
+        <p class="small" id="analyticsEmpty">No tracked responses yet.</p>
+      </section>
+    </main>
+  </div>
 
-          <div class="analytics-meta">
-            <p id="analyticsLiveState" class="analytics-live" data-tone="idle">Live stream: connecting...</p>
-            <button id="refreshAnalyticsBtn" class="btn-ghost">Refresh Snapshot</button>
-          </div>
+  <script>
+    const SESSION_STORAGE_KEY = "puter_gateway_session_token";
+    const ANALYTICS_EVENT_LIMIT = 150;
 
-          <div class="analytics-summary">
-            <article class="analytics-card">
-              <p class="analytics-card-label">Total</p>
-              <p class="analytics-card-value" id="analyticsTotal">0</p>
-            </article>
-            <article class="analytics-card">
-              <p class="analytics-card-label">HTTP 200</p>
-              <p class="analytics-card-value" id="analytics200">0</p>
-            </article>
-            <article class="analytics-card">
-              <p class="analytics-card-label">Success</p>
-              <p class="analytics-card-value" id="analyticsSuccess">0</p>
-            </article>
-            <article class="analytics-card">
-              <p class="analytics-card-label">Errors</p>
-              <p class="analytics-card-value" id="analyticsError">0</p>
-            </article>
-          </div>
-
-          <div>
-            <p class="label">Status Breakdown</p>
-            <div id="analyticsStatusBreakdown" class="analytics-breakdown"></div>
-          </div>
-
-          <div class="analytics-table-wrap">
-            <table class="analytics-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Method</th>
-                  <th>Path</th>
-                  <th>Status</th>
-                  <th>Reason</th>
-                  <th>Duration</th>
-                </tr>
-              </thead>
-              <tbody id="analyticsTableBody"></tbody>
-            </table>
-          </div>
-          <p class="small" id="analyticsEmpty">No tracked responses yet.</p>
-        </section>
-      </main>
-    </div>
-
-    <script>
-      const SESSION_STORAGE_KEY = "puter_gateway_session_token";
-      const ANALYTICS_EVENT_LIMIT = 150;
-
-      function createEmptyAnalyticsSummary() {
-        return {
-          total: 0,
-          ok200Count: 0,
-          successCount: 0,
-          errorCount: 0,
-          byStatus: {}
-        };
-      }
-
-      const state = {
-        sessionToken: localStorage.getItem(SESSION_STORAGE_KEY) || "",
-        user: null,
-        authMode: "unknown",
-        requiresSignIn: true,
-        keys: [],
-        newestPlaintextKey: "",
-        activeTab: "auth",
-        analytics: {
-          events: [],
-          summary: createEmptyAnalyticsSummary(),
-          stream: null,
-          reconnectTimer: null
-        }
+    function createEmptyAnalyticsSummary() {
+      return {
+        total: 0,
+        ok200Count: 0,
+        successCount: 0,
+        errorCount: 0,
+        byStatus: {}
       };
+    }
 
-      const dom = {
-        sessionPill: document.getElementById("sessionPill"),
-        keyCountPill: document.getElementById("keyCountPill"),
-        authStatus: document.getElementById("authStatus"),
-        userLine: document.getElementById("userLine"),
-        signInBtn: document.getElementById("signInBtn"),
-        signOutBtn: document.getElementById("signOutBtn"),
-        keyName: document.getElementById("keyName"),
-        createKeyBtn: document.getElementById("createKeyBtn"),
-        newKeyBox: document.getElementById("newKeyBox"),
-        copyNewKeyBtn: document.getElementById("copyNewKeyBtn"),
-        refreshKeysBtn: document.getElementById("refreshKeysBtn"),
-        keyList: document.getElementById("keyList"),
-        baseUrl: document.getElementById("baseUrl"),
-        useApiKey: document.getElementById("useApiKey"),
-        model: document.getElementById("model"),
-        prompt: document.getElementById("prompt"),
-        sendBtn: document.getElementById("sendBtn"),
-        output: document.getElementById("output"),
-        templateType: document.getElementById("templateType"),
-        templateCode: document.getElementById("templateCode"),
-        copyTemplateBtn: document.getElementById("copyTemplateBtn"),
-        refreshAnalyticsBtn: document.getElementById("refreshAnalyticsBtn"),
-        analyticsLiveState: document.getElementById("analyticsLiveState"),
-        analyticsTotal: document.getElementById("analyticsTotal"),
-        analytics200: document.getElementById("analytics200"),
-        analyticsSuccess: document.getElementById("analyticsSuccess"),
-        analyticsError: document.getElementById("analyticsError"),
-        analyticsStatusBreakdown: document.getElementById("analyticsStatusBreakdown"),
-        analyticsTableBody: document.getElementById("analyticsTableBody"),
-        analyticsEmpty: document.getElementById("analyticsEmpty"),
-        tabButtons: Array.from(document.querySelectorAll("[data-tab-target]")),
-        tabPanels: Array.from(document.querySelectorAll("[data-tab-panel]"))
-      };
-
-      function switchTab(tabName) {
-        state.activeTab = tabName;
-        dom.tabButtons.forEach((button) => {
-          const isActive = button.dataset.tabTarget === tabName;
-          button.classList.toggle("is-active", isActive);
-          button.setAttribute("aria-selected", isActive ? "true" : "false");
-        });
-        dom.tabPanels.forEach((panel) => {
-          const isActive = panel.dataset.tabPanel === tabName;
-          panel.classList.toggle("is-active", isActive);
-        });
+    const state = {
+      sessionToken: localStorage.getItem(SESSION_STORAGE_KEY) || "",
+      user: null,
+      authMode: "unknown",
+      requiresSignIn: true,
+      keys: [],
+      newestPlaintextKey: "",
+      activeTab: "auth",
+      analytics: {
+        events: [],
+        summary: createEmptyAnalyticsSummary(),
+        stream: null,
+        reconnectTimer: null
       }
+    };
 
-      function setStatus(message) {
-        dom.authStatus.textContent = message;
+    const dom = {
+      sessionPill: document.getElementById("sessionPill"),
+      keyCountPill: document.getElementById("keyCountPill"),
+      authStatus: document.getElementById("authStatus"),
+      userLine: document.getElementById("userLine"),
+      signInBtn: document.getElementById("signInBtn"),
+      signOutBtn: document.getElementById("signOutBtn"),
+      keyName: document.getElementById("keyName"),
+      createKeyBtn: document.getElementById("createKeyBtn"),
+      newKeyBox: document.getElementById("newKeyBox"),
+      copyNewKeyBtn: document.getElementById("copyNewKeyBtn"),
+      refreshKeysBtn: document.getElementById("refreshKeysBtn"),
+      keyList: document.getElementById("keyList"),
+      baseUrl: document.getElementById("baseUrl"),
+      useApiKey: document.getElementById("useApiKey"),
+      model: document.getElementById("model"),
+      prompt: document.getElementById("prompt"),
+      sendBtn: document.getElementById("sendBtn"),
+      output: document.getElementById("output"),
+      templateType: document.getElementById("templateType"),
+      templateCode: document.getElementById("templateCode"),
+      copyTemplateBtn: document.getElementById("copyTemplateBtn"),
+      refreshAnalyticsBtn: document.getElementById("refreshAnalyticsBtn"),
+      analyticsLiveState: document.getElementById("analyticsLiveState"),
+      analyticsTotal: document.getElementById("analyticsTotal"),
+      analytics200: document.getElementById("analytics200"),
+      analyticsSuccess: document.getElementById("analyticsSuccess"),
+      analyticsError: document.getElementById("analyticsError"),
+      analyticsStatusBreakdown: document.getElementById("analyticsStatusBreakdown"),
+      analyticsTableBody: document.getElementById("analyticsTableBody"),
+      analyticsEmpty: document.getElementById("analyticsEmpty"),
+      accountLabel: document.getElementById("accountLabel"),
+      accountToken: document.getElementById("accountToken"),
+      addAccountBtn: document.getElementById("addAccountBtn"),
+      refreshAccountsBtn: document.getElementById("refreshAccountsBtn"),
+      accountStatus: document.getElementById("accountStatus"),
+      accountList: document.getElementById("accountList"),
+      poolHealth: document.getElementById("poolHealth"),
+      signInAddAccountBtn: document.getElementById("signInAddAccountBtn"),
+      tabButtons: Array.from(document.querySelectorAll("[data-tab-target]")),
+      tabPanels: Array.from(document.querySelectorAll("[data-tab-panel]"))
+    };
+
+    function switchTab(tabName) {
+      state.activeTab = tabName;
+      dom.tabButtons.forEach((button) => {
+        const isActive = button.dataset.tabTarget === tabName;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+      dom.tabPanels.forEach((panel) => {
+        const isActive = panel.dataset.tabPanel === tabName;
+        panel.classList.toggle("is-active", isActive);
+      });
+    }
+
+    function setStatus(message) {
+      dom.authStatus.textContent = message;
+    }
+
+    function setSessionToken(token) {
+      state.sessionToken = token || "";
+      if (state.sessionToken) {
+        localStorage.setItem(SESSION_STORAGE_KEY, state.sessionToken);
+      } else {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
       }
+    }
 
-      function setSessionToken(token) {
-        state.sessionToken = token || "";
-        if (state.sessionToken) {
-          localStorage.setItem(SESSION_STORAGE_KEY, state.sessionToken);
-        } else {
-          localStorage.removeItem(SESSION_STORAGE_KEY);
-        }
-      }
+    function canManageKeys() {
+      return Boolean(state.sessionToken) || state.authMode === "bootstrap";
+    }
 
-      function canManageKeys() {
-        return Boolean(state.sessionToken) || state.authMode === "bootstrap";
-      }
+    function formatDate(value) {
+      if (!value) return "Never";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString();
+    }
 
-      function formatDate(value) {
-        if (!value) return "Never";
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return value;
-        return date.toLocaleString();
-      }
-
-      function renderAuth() {
-        const isBootstrap = state.authMode === "bootstrap";
-        if (state.user) {
-          if (isBootstrap) {
-            dom.sessionPill.textContent = "Server token mode";
-            dom.userLine.textContent = `User ID: ${state.user.id}`;
-            dom.signInBtn.textContent = "Sign In With Puter (optional)";
-            dom.signInBtn.disabled = false;
-            dom.signOutBtn.disabled = true;
-            return;
-          }
-
-          dom.sessionPill.textContent = `Signed in: ${state.user.username}`;
+    function renderAuth() {
+      const isBootstrap = state.authMode === "bootstrap";
+      if (state.user) {
+        if (isBootstrap) {
+          dom.sessionPill.textContent = "Server token mode";
           dom.userLine.textContent = `User ID: ${state.user.id}`;
-          dom.signInBtn.textContent = "Sign In With Puter";
+          dom.signInBtn.textContent = "Sign In With Puter (optional)";
           dom.signInBtn.disabled = false;
-          dom.signOutBtn.disabled = false;
+          dom.signOutBtn.disabled = true;
           return;
         }
 
-        dom.sessionPill.textContent = "Not signed in";
-        dom.userLine.textContent = "";
+        dom.sessionPill.textContent = `Signed in: ${state.user.username}`;
+        dom.userLine.textContent = `User ID: ${state.user.id}`;
         dom.signInBtn.textContent = "Sign In With Puter";
         dom.signInBtn.disabled = false;
-        dom.signOutBtn.disabled = true;
+        dom.signOutBtn.disabled = false;
+        return;
       }
 
-      function renderKeyCount() {
-        const count = state.keys.length;
-        dom.keyCountPill.textContent = `${count} key${count === 1 ? "" : "s"}`;
+      dom.sessionPill.textContent = "Not signed in";
+      dom.userLine.textContent = "";
+      dom.signInBtn.textContent = "Sign In With Puter";
+      dom.signInBtn.disabled = false;
+      dom.signOutBtn.disabled = true;
+    }
+
+    function renderKeyCount() {
+      const count = state.keys.length;
+      dom.keyCountPill.textContent = `${count} key${count === 1 ? "" : "s"}`;
+    }
+
+    function renderKeys() {
+      dom.keyList.innerHTML = "";
+      renderKeyCount();
+      if (!canManageKeys()) {
+        const li = document.createElement("li");
+        li.className = "key-item";
+        li.textContent = state.requiresSignIn
+          ? "Sign in to manage keys."
+          : "Configure PUTER_AUTH_TOKEN on the server to manage keys.";
+        dom.keyList.appendChild(li);
+        return;
       }
 
-      function renderKeys() {
-        dom.keyList.innerHTML = "";
-        renderKeyCount();
-        if (!canManageKeys()) {
-          const li = document.createElement("li");
-          li.className = "key-item";
-          li.textContent = state.requiresSignIn
-            ? "Sign in to manage keys."
-            : "Configure PUTER_AUTH_TOKEN on the server to manage keys.";
-          dom.keyList.appendChild(li);
-          return;
-        }
+      if (!state.keys.length) {
+        const li = document.createElement("li");
+        li.className = "key-item";
+        li.textContent = "No keys yet. Create one in this tab.";
+        dom.keyList.appendChild(li);
+        return;
+      }
 
-        if (!state.keys.length) {
-          const li = document.createElement("li");
-          li.className = "key-item";
-          li.textContent = "No keys yet. Create one in this tab.";
-          dom.keyList.appendChild(li);
-          return;
-        }
-
-        for (const key of state.keys) {
-          const li = document.createElement("li");
-          li.className = "key-item";
-          li.innerHTML = `
+      for (const key of state.keys) {
+        const li = document.createElement("li");
+        li.className = "key-item";
+        li.innerHTML = `
             <div class="key-head">
               <h3 class="key-name">${key.name}</h3>
               <div class="key-actions">
@@ -783,674 +929,868 @@
             <p class="small">Created: ${formatDate(key.createdAt)}</p>
             <p class="small">Last used: ${formatDate(key.lastUsedAt)}</p>
           `;
-          dom.keyList.appendChild(li);
-        }
+        dom.keyList.appendChild(li);
+      }
 
-        document.querySelectorAll(".copy-btn").forEach((button) => {
-          button.addEventListener("click", () => copyStoredKey(button.dataset.keyId));
+      document.querySelectorAll(".copy-btn").forEach((button) => {
+        button.addEventListener("click", () => copyStoredKey(button.dataset.keyId));
+      });
+
+      document.querySelectorAll(".revoke-btn").forEach((button) => {
+        button.addEventListener("click", () => revokeKey(button.dataset.keyId));
+      });
+    }
+
+    function setAnalyticsLiveState(message, tone = "idle") {
+      dom.analyticsLiveState.textContent = `Live stream: ${message}`;
+      dom.analyticsLiveState.dataset.tone = tone;
+    }
+
+    function normalizeAnalyticsSummary(summary) {
+      const fallback = createEmptyAnalyticsSummary();
+      if (!summary || typeof summary !== "object") {
+        return fallback;
+      }
+
+      const toNonNegativeInt = (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return 0;
+        }
+        return Math.max(0, Math.floor(numeric));
+      };
+
+      const byStatus = {};
+      if (summary.byStatus && typeof summary.byStatus === "object") {
+        for (const [statusCode, count] of Object.entries(summary.byStatus)) {
+          const parsedStatus = Number(statusCode);
+          const parsedCount = toNonNegativeInt(count);
+          if (Number.isInteger(parsedStatus) && parsedStatus > 0 && parsedCount > 0) {
+            byStatus[parsedStatus] = parsedCount;
+          }
+        }
+      }
+
+      return {
+        total: toNonNegativeInt(summary.total),
+        ok200Count: toNonNegativeInt(summary.ok200Count),
+        successCount: toNonNegativeInt(summary.successCount),
+        errorCount: toNonNegativeInt(summary.errorCount),
+        byStatus
+      };
+    }
+
+    function normalizeAnalyticsEvent(entry) {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const status = Number(entry.status);
+      const durationMs = Number(entry.durationMs);
+      return {
+        id:
+          typeof entry.id === "string" && entry.id
+            ? entry.id
+            : `evt_local_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        at: typeof entry.at === "string" && entry.at ? entry.at : new Date().toISOString(),
+        method:
+          typeof entry.method === "string" && entry.method
+            ? entry.method.toUpperCase()
+            : "-",
+        path: typeof entry.path === "string" && entry.path ? entry.path : "-",
+        status: Number.isInteger(status) ? status : 0,
+        reason:
+          typeof entry.reason === "string" && entry.reason.trim()
+            ? entry.reason.trim()
+            : "-",
+        durationMs: Number.isFinite(durationMs) ? Math.max(0, Math.round(durationMs)) : null
+      };
+    }
+
+    // --- Account management ---
+
+    function setAccountStatus(message) {
+      dom.accountStatus.textContent = message;
+    }
+
+    function renderPoolHealth(data) {
+      const total = data?.total || 0;
+      const healthy = data?.healthy || 0;
+      const failing = total - healthy;
+
+      if (total === 0) {
+        dom.poolHealth.textContent = "No accounts configured. Add one below.";
+        dom.poolHealth.classList.remove("has-errors");
+        return;
+      }
+
+      if (failing > 0) {
+        dom.poolHealth.textContent = `${healthy}/${total} accounts healthy • ${failing} failing`;
+        dom.poolHealth.classList.add("has-errors");
+      } else {
+        dom.poolHealth.textContent = `${healthy}/${total} accounts healthy ✓`;
+        dom.poolHealth.classList.remove("has-errors");
+      }
+    }
+
+    function getHealthBadge(status) {
+      if (status === "healthy") {
+        return '<span class="health-badge is-healthy">🟢 Healthy</span>';
+      }
+      if (status === "cooling-down") {
+        return '<span class="health-badge is-cooldown">🟡 Cooling Down</span>';
+      }
+      return '<span class="health-badge is-failing">🔴 Failing</span>';
+    }
+
+    function renderAccounts(accounts) {
+      dom.accountList.innerHTML = "";
+
+      if (!accounts || accounts.length === 0) {
+        const li = document.createElement("li");
+        li.className = "account-item";
+        li.textContent = "No accounts in the pool yet. Add one above or set PUTER_AUTH_TOKEN in .env.";
+        dom.accountList.appendChild(li);
+        return;
+      }
+
+      for (const acc of accounts) {
+        const li = document.createElement("li");
+        li.className = "account-item";
+        const isPrimary = acc.id === "primary";
+        li.innerHTML = `
+            <div class="account-head">
+              <h3 class="account-label">${acc.label}</h3>
+              <div class="account-actions">
+                ${getHealthBadge(acc.status)}
+                <button data-acc-id="${acc.id}" class="btn-ghost test-acc-btn">Test</button>
+                <button data-acc-id="${acc.id}" class="btn-danger remove-acc-btn" ${isPrimary ? 'disabled title="Primary account from .env"' : ''}>Remove</button>
+              </div>
+            </div>
+            <p class="account-token">${acc.maskedToken}</p>
+            <p class="small">Source: ${acc.source || "ui"}${acc.failCount > 0 ? " • Failures: " + acc.failCount : ""}${acc.lastError ? " • Last error: " + acc.lastError : ""}</p>
+          `;
+        dom.accountList.appendChild(li);
+      }
+
+      document.querySelectorAll(".test-acc-btn").forEach((btn) => {
+        btn.addEventListener("click", () => testAccount(btn.dataset.accId));
+      });
+
+      document.querySelectorAll(".remove-acc-btn").forEach((btn) => {
+        if (!btn.disabled) {
+          btn.addEventListener("click", () => removeAccount(btn.dataset.accId));
+        }
+      });
+    }
+
+    async function loadAccounts() {
+      try {
+        const result = await apiFetch("/v1/accounts", { method: "GET" });
+        renderPoolHealth(result);
+        renderAccounts(result.accounts || []);
+      } catch (error) {
+        setAccountStatus(error.message || "Failed to load accounts.");
+      }
+    }
+
+    async function addAccount() {
+      const label = dom.accountLabel.value.trim();
+      const token = dom.accountToken.value.trim();
+
+      if (!token) {
+        setAccountStatus("Please enter a Puter auth token.");
+        return;
+      }
+
+      setAccountStatus("Verifying and adding account...");
+      try {
+        await apiFetch("/v1/accounts", {
+          method: "POST",
+          body: JSON.stringify({ label, token })
         });
+        dom.accountLabel.value = "";
+        dom.accountToken.value = "";
+        setAccountStatus("Account added successfully!");
+        await loadAccounts();
+      } catch (error) {
+        setAccountStatus(error.message || "Failed to add account.");
+      }
+    }
 
-        document.querySelectorAll(".revoke-btn").forEach((button) => {
-          button.addEventListener("click", () => revokeKey(button.dataset.keyId));
+    async function removeAccount(accountId) {
+      if (!accountId) return;
+      setAccountStatus("Removing account...");
+      try {
+        await apiFetch(`/v1/accounts/${encodeURIComponent(accountId)}`, {
+          method: "DELETE"
         });
+        setAccountStatus("Account removed.");
+        await loadAccounts();
+      } catch (error) {
+        setAccountStatus(error.message || "Failed to remove account.");
       }
+    }
 
-      function setAnalyticsLiveState(message, tone = "idle") {
-        dom.analyticsLiveState.textContent = `Live stream: ${message}`;
-        dom.analyticsLiveState.dataset.tone = tone;
+    async function testAccount(accountId) {
+      if (!accountId) return;
+      setAccountStatus(`Testing account ${accountId}...`);
+      try {
+        const result = await apiFetch(
+          `/v1/accounts/${encodeURIComponent(accountId)}/test`,
+          { method: "POST", body: "{}" }
+        );
+        if (result.status === "healthy") {
+          setAccountStatus(`Account verified as healthy (${result.username}).`);
+        } else {
+          setAccountStatus(`Account test failed: ${result.error || "Unknown error"}`);
+        }
+        await loadAccounts();
+      } catch (error) {
+        setAccountStatus(error.message || "Test failed.");
       }
+    }
 
-      function normalizeAnalyticsSummary(summary) {
-        const fallback = createEmptyAnalyticsSummary();
-        if (!summary || typeof summary !== "object") {
-          return fallback;
+    async function signInToAddAccount() {
+      setAccountStatus("Opening Puter sign-in popup...");
+      try {
+        // Force a fresh sign-in popup so the user can pick a different account
+        let puterToken = "";
+        const result = await puter.auth.signIn();
+        puterToken = result?.token || puter.authToken || "";
+
+        if (!puterToken) {
+          throw new Error("Could not get Puter token from sign-in.");
         }
 
-        const toNonNegativeInt = (value) => {
-          const numeric = Number(value);
-          if (!Number.isFinite(numeric)) {
-            return 0;
-          }
-          return Math.max(0, Math.floor(numeric));
-        };
+        setAccountStatus("Token detected! Adding account...");
 
-        const byStatus = {};
-        if (summary.byStatus && typeof summary.byStatus === "object") {
-          for (const [statusCode, count] of Object.entries(summary.byStatus)) {
-            const parsedStatus = Number(statusCode);
-            const parsedCount = toNonNegativeInt(count);
-            if (Number.isInteger(parsedStatus) && parsedStatus > 0 && parsedCount > 0) {
-              byStatus[parsedStatus] = parsedCount;
-            }
-          }
-        }
-
-        return {
-          total: toNonNegativeInt(summary.total),
-          ok200Count: toNonNegativeInt(summary.ok200Count),
-          successCount: toNonNegativeInt(summary.successCount),
-          errorCount: toNonNegativeInt(summary.errorCount),
-          byStatus
-        };
-      }
-
-      function normalizeAnalyticsEvent(entry) {
-        if (!entry || typeof entry !== "object") {
-          return null;
-        }
-
-        const status = Number(entry.status);
-        const durationMs = Number(entry.durationMs);
-        return {
-          id:
-            typeof entry.id === "string" && entry.id
-              ? entry.id
-              : `evt_local_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-          at: typeof entry.at === "string" && entry.at ? entry.at : new Date().toISOString(),
-          method:
-            typeof entry.method === "string" && entry.method
-              ? entry.method.toUpperCase()
-              : "-",
-          path: typeof entry.path === "string" && entry.path ? entry.path : "-",
-          status: Number.isInteger(status) ? status : 0,
-          reason:
-            typeof entry.reason === "string" && entry.reason.trim()
-              ? entry.reason.trim()
-              : "-",
-          durationMs: Number.isFinite(durationMs) ? Math.max(0, Math.round(durationMs)) : null
-        };
-      }
-
-      function normalizeAnalyticsEvents(events) {
-        if (!Array.isArray(events)) {
-          return [];
-        }
-
-        const normalized = [];
-        for (const entry of events) {
-          const safeEntry = normalizeAnalyticsEvent(entry);
-          if (!safeEntry) {
-            continue;
-          }
-          normalized.push(safeEntry);
-        }
-
-        return normalized.slice(0, ANALYTICS_EVENT_LIMIT);
-      }
-
-      function parseSsePayload(rawData) {
+        // Try to get the username for a nicer label
+        let label = "Puter Account";
         try {
-          return JSON.parse(rawData);
+          const whoami = await fetch("/auth/puter/signin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ puterToken })
+          });
+          const whoamiData = await whoami.json();
+          if (whoamiData?.user?.username) {
+            label = whoamiData.user.username;
+          }
         } catch {
-          return null;
+          // Use default label
+        }
+
+        await apiFetch("/v1/accounts", {
+          method: "POST",
+          body: JSON.stringify({ label, token: puterToken })
+        });
+
+        setAccountStatus(`Account "${label}" added successfully!`);
+        await loadAccounts();
+      } catch (error) {
+        const msg = error?.message || String(error);
+        if (msg.includes("already in the account pool")) {
+          setAccountStatus("This account is already in the pool.");
+        } else {
+          setAccountStatus(msg);
         }
       }
+    }
 
-      function upsertAnalyticsEntry(entry) {
+    function normalizeAnalyticsEvents(events) {
+      if (!Array.isArray(events)) {
+        return [];
+      }
+
+      const normalized = [];
+      for (const entry of events) {
         const safeEntry = normalizeAnalyticsEvent(entry);
         if (!safeEntry) {
-          return;
+          continue;
         }
-
-        state.analytics.events = [
-          safeEntry,
-          ...state.analytics.events.filter((item) => item.id !== safeEntry.id)
-        ].slice(0, ANALYTICS_EVENT_LIMIT);
+        normalized.push(safeEntry);
       }
 
-      function renderAnalytics() {
-        const summary = normalizeAnalyticsSummary(state.analytics.summary);
-        state.analytics.summary = summary;
+      return normalized.slice(0, ANALYTICS_EVENT_LIMIT);
+    }
 
-        dom.analyticsTotal.textContent = String(summary.total);
-        dom.analytics200.textContent = String(summary.ok200Count);
-        dom.analyticsSuccess.textContent = String(summary.successCount);
-        dom.analyticsError.textContent = String(summary.errorCount);
+    function parseSsePayload(rawData) {
+      try {
+        return JSON.parse(rawData);
+      } catch {
+        return null;
+      }
+    }
 
-        dom.analyticsStatusBreakdown.innerHTML = "";
-        const statusEntries = Object.entries(summary.byStatus)
-          .map(([statusCode, count]) => ({
-            statusCode: Number(statusCode),
-            count: Number(count)
-          }))
-          .sort((a, b) => a.statusCode - b.statusCode);
+    function upsertAnalyticsEntry(entry) {
+      const safeEntry = normalizeAnalyticsEvent(entry);
+      if (!safeEntry) {
+        return;
+      }
 
-        if (!statusEntries.length) {
+      state.analytics.events = [
+        safeEntry,
+        ...state.analytics.events.filter((item) => item.id !== safeEntry.id)
+      ].slice(0, ANALYTICS_EVENT_LIMIT);
+    }
+
+    function renderAnalytics() {
+      const summary = normalizeAnalyticsSummary(state.analytics.summary);
+      state.analytics.summary = summary;
+
+      dom.analyticsTotal.textContent = String(summary.total);
+      dom.analytics200.textContent = String(summary.ok200Count);
+      dom.analyticsSuccess.textContent = String(summary.successCount);
+      dom.analyticsError.textContent = String(summary.errorCount);
+
+      dom.analyticsStatusBreakdown.innerHTML = "";
+      const statusEntries = Object.entries(summary.byStatus)
+        .map(([statusCode, count]) => ({
+          statusCode: Number(statusCode),
+          count: Number(count)
+        }))
+        .sort((a, b) => a.statusCode - b.statusCode);
+
+      if (!statusEntries.length) {
+        const chip = document.createElement("span");
+        chip.className = "analytics-chip";
+        chip.textContent = "No responses yet";
+        dom.analyticsStatusBreakdown.appendChild(chip);
+      } else {
+        for (const statusEntry of statusEntries) {
           const chip = document.createElement("span");
-          chip.className = "analytics-chip";
-          chip.textContent = "No responses yet";
+          chip.className = `analytics-chip ${statusEntry.statusCode >= 400 ? "is-error" : "is-success"}`;
+          chip.textContent = `${statusEntry.statusCode}: ${statusEntry.count}`;
           dom.analyticsStatusBreakdown.appendChild(chip);
-        } else {
-          for (const statusEntry of statusEntries) {
-            const chip = document.createElement("span");
-            chip.className = `analytics-chip ${statusEntry.statusCode >= 400 ? "is-error" : "is-success"}`;
-            chip.textContent = `${statusEntry.statusCode}: ${statusEntry.count}`;
-            dom.analyticsStatusBreakdown.appendChild(chip);
-          }
-        }
-
-        dom.analyticsTableBody.innerHTML = "";
-        const events = normalizeAnalyticsEvents(state.analytics.events);
-        state.analytics.events = events;
-        dom.analyticsEmpty.style.display = events.length ? "none" : "block";
-
-        for (const entry of events) {
-          const row = document.createElement("tr");
-
-          const timeCell = document.createElement("td");
-          timeCell.textContent = formatDate(entry.at);
-          row.appendChild(timeCell);
-
-          const methodCell = document.createElement("td");
-          methodCell.textContent = entry.method;
-          row.appendChild(methodCell);
-
-          const pathCell = document.createElement("td");
-          const pathCode = document.createElement("code");
-          pathCode.textContent = entry.path;
-          pathCell.appendChild(pathCode);
-          row.appendChild(pathCell);
-
-          const statusCell = document.createElement("td");
-          const statusPill = document.createElement("span");
-          statusPill.className = `status-pill ${entry.status >= 400 ? "is-error" : "is-success"}`;
-          statusPill.textContent = entry.status ? String(entry.status) : "-";
-          statusCell.appendChild(statusPill);
-          row.appendChild(statusCell);
-
-          const reasonCell = document.createElement("td");
-          reasonCell.textContent = entry.reason;
-          row.appendChild(reasonCell);
-
-          const durationCell = document.createElement("td");
-          durationCell.textContent =
-            Number.isInteger(entry.durationMs) && entry.durationMs >= 0
-              ? `${entry.durationMs} ms`
-              : "-";
-          row.appendChild(durationCell);
-
-          dom.analyticsTableBody.appendChild(row);
         }
       }
 
-      async function loadAnalyticsSnapshot() {
-        const result = await apiFetch(`/v1/analytics?limit=${ANALYTICS_EVENT_LIMIT}`, {
-          method: "GET"
-        });
+      dom.analyticsTableBody.innerHTML = "";
+      const events = normalizeAnalyticsEvents(state.analytics.events);
+      state.analytics.events = events;
+      dom.analyticsEmpty.style.display = events.length ? "none" : "block";
 
-        state.analytics.summary = normalizeAnalyticsSummary(result?.summary);
-        state.analytics.events = normalizeAnalyticsEvents(result?.events);
-        renderAnalytics();
+      for (const entry of events) {
+        const row = document.createElement("tr");
+
+        const timeCell = document.createElement("td");
+        timeCell.textContent = formatDate(entry.at);
+        row.appendChild(timeCell);
+
+        const methodCell = document.createElement("td");
+        methodCell.textContent = entry.method;
+        row.appendChild(methodCell);
+
+        const pathCell = document.createElement("td");
+        const pathCode = document.createElement("code");
+        pathCode.textContent = entry.path;
+        pathCell.appendChild(pathCode);
+        row.appendChild(pathCell);
+
+        const statusCell = document.createElement("td");
+        const statusPill = document.createElement("span");
+        statusPill.className = `status-pill ${entry.status >= 400 ? "is-error" : "is-success"}`;
+        statusPill.textContent = entry.status ? String(entry.status) : "-";
+        statusCell.appendChild(statusPill);
+        row.appendChild(statusCell);
+
+        const reasonCell = document.createElement("td");
+        reasonCell.textContent = entry.reason;
+        row.appendChild(reasonCell);
+
+        const durationCell = document.createElement("td");
+        durationCell.textContent =
+          Number.isInteger(entry.durationMs) && entry.durationMs >= 0
+            ? `${entry.durationMs} ms`
+            : "-";
+        row.appendChild(durationCell);
+
+        dom.analyticsTableBody.appendChild(row);
+      }
+    }
+
+    async function loadAnalyticsSnapshot() {
+      const result = await apiFetch(`/v1/analytics?limit=${ANALYTICS_EVENT_LIMIT}`, {
+        method: "GET"
+      });
+
+      state.analytics.summary = normalizeAnalyticsSummary(result?.summary);
+      state.analytics.events = normalizeAnalyticsEvents(result?.events);
+      renderAnalytics();
+    }
+
+    function closeAnalyticsStream() {
+      if (state.analytics.reconnectTimer) {
+        clearTimeout(state.analytics.reconnectTimer);
+        state.analytics.reconnectTimer = null;
       }
 
-      function closeAnalyticsStream() {
-        if (state.analytics.reconnectTimer) {
-          clearTimeout(state.analytics.reconnectTimer);
-          state.analytics.reconnectTimer = null;
-        }
+      if (state.analytics.stream) {
+        state.analytics.stream.close();
+        state.analytics.stream = null;
+      }
+    }
 
-        if (state.analytics.stream) {
-          state.analytics.stream.close();
-          state.analytics.stream = null;
-        }
+    function scheduleAnalyticsReconnect() {
+      if (state.analytics.reconnectTimer) {
+        return;
       }
 
-      function scheduleAnalyticsReconnect() {
-        if (state.analytics.reconnectTimer) {
+      state.analytics.reconnectTimer = setTimeout(() => {
+        state.analytics.reconnectTimer = null;
+        connectAnalyticsStream();
+      }, 2000);
+    }
+
+    function connectAnalyticsStream() {
+      if (state.analytics.stream) {
+        state.analytics.stream.close();
+        state.analytics.stream = null;
+      }
+
+      setAnalyticsLiveState("connecting...", "idle");
+      const stream = new EventSource("/v1/analytics/stream");
+      state.analytics.stream = stream;
+
+      stream.addEventListener("open", () => {
+        if (state.analytics.stream !== stream) {
+          return;
+        }
+        setAnalyticsLiveState("connected", "ok");
+      });
+
+      stream.addEventListener("snapshot", (event) => {
+        if (state.analytics.stream !== stream) {
           return;
         }
 
-        state.analytics.reconnectTimer = setTimeout(() => {
-          state.analytics.reconnectTimer = null;
-          connectAnalyticsStream();
-        }, 2000);
-      }
-
-      function connectAnalyticsStream() {
-        if (state.analytics.stream) {
-          state.analytics.stream.close();
-          state.analytics.stream = null;
+        const payload = parseSsePayload(event.data);
+        if (!payload) {
+          return;
         }
 
-        setAnalyticsLiveState("connecting...", "idle");
-        const stream = new EventSource("/v1/analytics/stream");
-        state.analytics.stream = stream;
+        state.analytics.summary = normalizeAnalyticsSummary(payload.summary);
+        state.analytics.events = normalizeAnalyticsEvents(payload.events);
+        renderAnalytics();
+      });
 
-        stream.addEventListener("open", () => {
-          if (state.analytics.stream !== stream) {
-            return;
-          }
-          setAnalyticsLiveState("connected", "ok");
-        });
+      stream.addEventListener("entry", (event) => {
+        if (state.analytics.stream !== stream) {
+          return;
+        }
 
-        stream.addEventListener("snapshot", (event) => {
-          if (state.analytics.stream !== stream) {
-            return;
-          }
+        const payload = parseSsePayload(event.data);
+        if (!payload) {
+          return;
+        }
 
-          const payload = parseSsePayload(event.data);
-          if (!payload) {
-            return;
-          }
-
+        if (payload.entry) {
+          upsertAnalyticsEntry(payload.entry);
+        }
+        if (payload.summary) {
           state.analytics.summary = normalizeAnalyticsSummary(payload.summary);
-          state.analytics.events = normalizeAnalyticsEvents(payload.events);
-          renderAnalytics();
-        });
+        }
+        renderAnalytics();
+      });
 
-        stream.addEventListener("entry", (event) => {
-          if (state.analytics.stream !== stream) {
-            return;
-          }
-
-          const payload = parseSsePayload(event.data);
-          if (!payload) {
-            return;
-          }
-
-          if (payload.entry) {
-            upsertAnalyticsEntry(payload.entry);
-          }
-          if (payload.summary) {
-            state.analytics.summary = normalizeAnalyticsSummary(payload.summary);
-          }
-          renderAnalytics();
-        });
-
-        stream.addEventListener("error", () => {
-          if (state.analytics.stream !== stream) {
-            return;
-          }
-
-          stream.close();
-          state.analytics.stream = null;
-          setAnalyticsLiveState("disconnected, retrying...", "error");
-          scheduleAnalyticsReconnect();
-        });
-      }
-
-      function escapeForSingleQuotes(value) {
-        return value.replace(/'/g, "'\"'\"'");
-      }
-
-      function escapeForDoubleQuotes(value) {
-        return value.replace(/"/g, '\\"');
-      }
-
-      function buildTemplateCode() {
-        const baseUrl = dom.baseUrl.value.trim() || "https://puter-api-key.onrender.com";
-        const apiKey = dom.useApiKey.value.trim() || "sk_your_api_key_here";
-        const model = dom.model.value.trim() || "gpt-5-nano";
-        const prompt = dom.prompt.value.trim() || "Hello";
-        const templateType = dom.templateType.value;
-
-        if (templateType === "powershell") {
-          const psPrompt = prompt.replace(/'/g, "''");
-          const psModel = model.replace(/'/g, "''");
-          const psBaseUrl = baseUrl.replace(/'/g, "''");
-          const psApiKey = apiKey.replace(/'/g, "''");
-          return [
-            `$body = @{`,
-            `  model = '${psModel}'`,
-            `  messages = @(`,
-            `    @{ role = 'user'; content = '${psPrompt}' }`,
-            `  )`,
-            `} | ConvertTo-Json -Depth 5`,
-            ``,
-            `$headers = @{`,
-            `  'Content-Type' = 'application/json'`,
-            `  'Authorization' = 'Bearer ${psApiKey}'`,
-            `}`,
-            ``,
-            `try {`,
-            `  $response = Invoke-RestMethod -Method Post -Uri '${psBaseUrl}/v1/chat/completions' -Headers $headers -Body $body -ErrorAction Stop`,
-            `  if ($response -and $response.choices -and $response.choices.Count -gt 0 -and $response.choices[0].message -and $response.choices[0].message.content) {`,
-            `    $response.choices[0].message.content`,
-            `  } else {`,
-            `    $response | ConvertTo-Json -Depth 10`,
-            `  }`,
-            `} catch {`,
-            `  $statusCode = $null`,
-            `  if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {`,
-            `    $statusCode = [int]$_.Exception.Response.StatusCode`,
-            `  }`,
-            `  if ($statusCode -eq 429) {`,
-            `    Write-Host "You are rate limited by Puter. Please wait and retry." -ForegroundColor Yellow`,
-            `  } elseif ($statusCode) {`,
-            `    Write-Host "Request failed (HTTP $statusCode)" -ForegroundColor Red`,
-            `  } else {`,
-            `    Write-Host "Request failed" -ForegroundColor Red`,
-            `  }`,
-            `  if ($_.ErrorDetails -and $_.ErrorDetails.Message) {`,
-            `    Write-Host $_.ErrorDetails.Message`,
-            `  } else {`,
-            `    Write-Host $_.Exception.Message`,
-            `  }`,
-            `}`
-          ].join("\n");
+      stream.addEventListener("error", () => {
+        if (state.analytics.stream !== stream) {
+          return;
         }
 
-        if (templateType === "cmd") {
-          const cmdPrompt = escapeForDoubleQuotes(prompt);
-          const cmdModel = escapeForDoubleQuotes(model);
-          const cmdBaseUrl = escapeForDoubleQuotes(baseUrl);
-          const cmdApiKey = escapeForDoubleQuotes(apiKey);
-          return [
-            `curl -X POST "${cmdBaseUrl}/v1/chat/completions" ^`,
-            `  -H "Content-Type: application/json" ^`,
-            `  -H "Authorization: Bearer ${cmdApiKey}" ^`,
-            `  -d "{\\"model\\":\\"${cmdModel}\\",\\"messages\\":[{\\"role\\":\\"user\\",\\"content\\":\\"${cmdPrompt}\\"}]}"`,
-          ].join("\n");
-        }
+        stream.close();
+        state.analytics.stream = null;
+        setAnalyticsLiveState("disconnected, retrying...", "error");
+        scheduleAnalyticsReconnect();
+      });
+    }
 
-        const shPrompt = escapeForSingleQuotes(prompt);
-        const shModel = escapeForSingleQuotes(model);
-        const shBaseUrl = escapeForSingleQuotes(baseUrl);
-        const shApiKey = escapeForSingleQuotes(apiKey);
+    function escapeForSingleQuotes(value) {
+      return value.replace(/'/g, "'\"'\"'");
+    }
+
+    function escapeForDoubleQuotes(value) {
+      return value.replace(/"/g, '\\"');
+    }
+
+    function buildTemplateCode() {
+      const baseUrl = dom.baseUrl.value.trim() || "https://puter-api-key.onrender.com";
+      const apiKey = dom.useApiKey.value.trim() || "sk_your_api_key_here";
+      const model = dom.model.value.trim() || "gpt-5-nano";
+      const prompt = dom.prompt.value.trim() || "Hello";
+      const templateType = dom.templateType.value;
+
+      if (templateType === "powershell") {
+        const psPrompt = prompt.replace(/'/g, "''");
+        const psModel = model.replace(/'/g, "''");
+        const psBaseUrl = baseUrl.replace(/'/g, "''");
+        const psApiKey = apiKey.replace(/'/g, "''");
         return [
-          `curl -X POST '${shBaseUrl}/v1/chat/completions' \\`,
-          `  -H 'Content-Type: application/json' \\`,
-          `  -H 'Authorization: Bearer ${shApiKey}' \\`,
-          `  -d '{"model":"${shModel}","messages":[{"role":"user","content":"${shPrompt}"}]}'`
+          `$body = @{`,
+          `  model = '${psModel}'`,
+          `  messages = @(`,
+          `    @{ role = 'user'; content = '${psPrompt}' }`,
+          `  )`,
+          `} | ConvertTo-Json -Depth 5`,
+          ``,
+          `$headers = @{`,
+          `  'Content-Type' = 'application/json'`,
+          `  'Authorization' = 'Bearer ${psApiKey}'`,
+          `}`,
+          ``,
+          `try {`,
+          `  $response = Invoke-RestMethod -Method Post -Uri '${psBaseUrl}/v1/chat/completions' -Headers $headers -Body $body -ErrorAction Stop`,
+          `  if ($response -and $response.choices -and $response.choices.Count -gt 0 -and $response.choices[0].message -and $response.choices[0].message.content) {`,
+          `    $response.choices[0].message.content`,
+          `  } else {`,
+          `    $response | ConvertTo-Json -Depth 10`,
+          `  }`,
+          `} catch {`,
+          `  $statusCode = $null`,
+          `  if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {`,
+          `    $statusCode = [int]$_.Exception.Response.StatusCode`,
+          `  }`,
+          `  if ($statusCode -eq 429) {`,
+          `    Write-Host "You are rate limited by Puter. Please wait and retry." -ForegroundColor Yellow`,
+          `  } elseif ($statusCode) {`,
+          `    Write-Host "Request failed (HTTP $statusCode)" -ForegroundColor Red`,
+          `  } else {`,
+          `    Write-Host "Request failed" -ForegroundColor Red`,
+          `  }`,
+          `  if ($_.ErrorDetails -and $_.ErrorDetails.Message) {`,
+          `    Write-Host $_.ErrorDetails.Message`,
+          `  } else {`,
+          `    Write-Host $_.Exception.Message`,
+          `  }`,
+          `}`
         ].join("\n");
       }
 
-      function refreshTemplateCode() {
-        dom.templateCode.textContent = buildTemplateCode();
+      if (templateType === "cmd") {
+        const cmdPrompt = escapeForDoubleQuotes(prompt);
+        const cmdModel = escapeForDoubleQuotes(model);
+        const cmdBaseUrl = escapeForDoubleQuotes(baseUrl);
+        const cmdApiKey = escapeForDoubleQuotes(apiKey);
+        return [
+          `curl -X POST "${cmdBaseUrl}/v1/chat/completions" ^`,
+          `  -H "Content-Type: application/json" ^`,
+          `  -H "Authorization: Bearer ${cmdApiKey}" ^`,
+          `  -d "{\\"model\\":\\"${cmdModel}\\",\\"messages\\":[{\\"role\\":\\"user\\",\\"content\\":\\"${cmdPrompt}\\"}]}"`,
+        ].join("\n");
       }
 
-      async function apiFetch(path, options = {}) {
-        const headers = {
-          ...(options.headers || {}),
-          "Content-Type": "application/json"
-        };
+      const shPrompt = escapeForSingleQuotes(prompt);
+      const shModel = escapeForSingleQuotes(model);
+      const shBaseUrl = escapeForSingleQuotes(baseUrl);
+      const shApiKey = escapeForSingleQuotes(apiKey);
+      return [
+        `curl -X POST '${shBaseUrl}/v1/chat/completions' \\`,
+        `  -H 'Content-Type: application/json' \\`,
+        `  -H 'Authorization: Bearer ${shApiKey}' \\`,
+        `  -d '{"model":"${shModel}","messages":[{"role":"user","content":"${shPrompt}"}]}'`
+      ].join("\n");
+    }
+
+    function refreshTemplateCode() {
+      dom.templateCode.textContent = buildTemplateCode();
+    }
+
+    async function apiFetch(path, options = {}) {
+      const headers = {
+        ...(options.headers || {}),
+        "Content-Type": "application/json"
+      };
+      if (state.sessionToken) {
+        headers.Authorization = `Bearer ${state.sessionToken}`;
+      }
+
+      const response = await fetch(path, {
+        ...options,
+        headers
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data?.error?.message || `Request failed (${response.status})`;
+        throw new Error(message);
+      }
+      return data;
+    }
+
+    async function syncSession() {
+      try {
+        const me = await apiFetch("/auth/me", { method: "GET" });
+        state.user = me.user || null;
+        state.authMode = me.mode || (state.sessionToken ? "session" : "bootstrap");
+        state.requiresSignIn = Boolean(me.requiresSignIn);
+        renderAuth();
+        await loadKeys();
+
+        if (state.authMode === "bootstrap") {
+          setStatus("Server token mode enabled. Sign-in not required.");
+        } else {
+          setStatus("Signed in and ready to create/use keys.");
+        }
+      } catch (error) {
         if (state.sessionToken) {
-          headers.Authorization = `Bearer ${state.sessionToken}`;
+          setSessionToken("");
         }
-
-        const response = await fetch(path, {
-          ...options,
-          headers
-        });
-
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const message = data?.error?.message || `Request failed (${response.status})`;
-          throw new Error(message);
-        }
-        return data;
-      }
-
-      async function syncSession() {
-        try {
-          const me = await apiFetch("/auth/me", { method: "GET" });
-          state.user = me.user || null;
-          state.authMode = me.mode || (state.sessionToken ? "session" : "bootstrap");
-          state.requiresSignIn = Boolean(me.requiresSignIn);
-          renderAuth();
-          await loadKeys();
-
-          if (state.authMode === "bootstrap") {
-            setStatus("Server token mode enabled. Sign-in not required.");
-          } else {
-            setStatus("Signed in and ready to create/use keys.");
-          }
-        } catch (error) {
-          if (state.sessionToken) {
-            setSessionToken("");
-          }
-          state.user = null;
-          state.authMode = "none";
-          state.requiresSignIn = true;
-          state.keys = [];
-          renderAuth();
-          renderKeys();
-          setStatus(error.message || "Sign in required.");
-        }
-      }
-
-      async function signIn() {
-        try {
-          setStatus("Opening Puter sign-in popup...");
-
-          const localPuterToken = localStorage.getItem("puter.auth.token") || "";
-          let puterToken = "";
-          if (puter.auth.isSignedIn() && puter.authToken) {
-            puterToken = puter.authToken;
-          } else {
-            const result = await puter.auth.signIn();
-            puterToken = result?.token || puter.authToken || localPuterToken;
-          }
-
-          if (!puterToken) {
-            throw new Error("Could not get Puter token from sign-in.");
-          }
-
-          const data = await apiFetch("/auth/puter/signin", {
-            method: "POST",
-            body: JSON.stringify({ puterToken })
-          });
-
-          setSessionToken(data.sessionToken);
-          state.user = data.user;
-          state.authMode = "session";
-          setStatus(`Signed in as ${data.user.username}.`);
-          renderAuth();
-          await loadKeys();
-          switchTab("keys");
-        } catch (error) {
-          setStatus(error.message || String(error));
-        }
-      }
-
-      async function signOut() {
-        try {
-          if (state.sessionToken) {
-            await apiFetch("/auth/signout", { method: "POST", body: "{}" });
-          }
-        } catch {
-          // No action needed.
-        }
-
-        try {
-          if (puter.auth.isSignedIn()) {
-            puter.auth.signOut();
-          }
-        } catch {
-          // No action needed.
-        }
-
-        setSessionToken("");
         state.user = null;
         state.authMode = "none";
         state.requiresSignIn = true;
         state.keys = [];
-        state.newestPlaintextKey = "";
-        dom.newKeyBox.style.display = "none";
-        dom.copyNewKeyBtn.style.display = "none";
         renderAuth();
         renderKeys();
-        setStatus("Signed out.");
-        switchTab("auth");
+        setStatus(error.message || "Sign in required.");
       }
+    }
 
-      async function loadKeys() {
-        if (!canManageKeys()) {
-          state.keys = [];
-          renderKeys();
-          return;
+    async function signIn() {
+      try {
+        setStatus("Opening Puter sign-in popup...");
+
+        const localPuterToken = localStorage.getItem("puter.auth.token") || "";
+        let puterToken = "";
+        if (puter.auth.isSignedIn() && puter.authToken) {
+          puterToken = puter.authToken;
+        } else {
+          const result = await puter.auth.signIn();
+          puterToken = result?.token || puter.authToken || localPuterToken;
         }
 
-        const result = await apiFetch("/v1/keys", { method: "GET" });
-        state.keys = result.keys || [];
-        renderKeys();
-      }
-
-      async function createKey() {
-        try {
-          if (!canManageKeys()) {
-            throw new Error(
-              state.requiresSignIn
-                ? "Sign in first."
-                : "Configure PUTER_AUTH_TOKEN on the server first."
-            );
-          }
-
-          const name = dom.keyName.value.trim();
-          const result = await apiFetch("/v1/keys", {
-            method: "POST",
-            body: JSON.stringify({ name })
-          });
-
-          state.newestPlaintextKey = result.key.value;
-          dom.newKeyBox.textContent = `New key (save now, shown once): ${result.key.value}`;
-          dom.newKeyBox.style.display = "block";
-          dom.copyNewKeyBtn.style.display = "inline-block";
-          dom.useApiKey.value = result.key.value;
-          refreshTemplateCode();
-          setStatus("New API key created.");
-          await loadKeys();
-        } catch (error) {
-          setStatus(error.message);
-        }
-      }
-
-      async function revokeKey(keyId) {
-        if (!keyId) return;
-        try {
-          await apiFetch(`/v1/keys/${encodeURIComponent(keyId)}`, {
-            method: "DELETE"
-          });
-          setStatus("Key revoked.");
-          await loadKeys();
-        } catch (error) {
-          setStatus(error.message);
-        }
-      }
-
-      async function copyStoredKey(keyId) {
-        if (!keyId) return;
-        try {
-          const result = await apiFetch(`/v1/keys/${encodeURIComponent(keyId)}/reveal`, {
-            method: "GET"
-          });
-          const keyValue = result?.key?.value || "";
-          if (!keyValue) {
-            throw new Error("Key value not available.");
-          }
-
-          await navigator.clipboard.writeText(keyValue);
-          dom.useApiKey.value = keyValue;
-          refreshTemplateCode();
-          setStatus("API key copied to clipboard.");
-        } catch (error) {
-          setStatus(error.message || "Could not copy key.");
-        }
-      }
-
-      async function copyNewestKey() {
-        if (!state.newestPlaintextKey) {
-          setStatus("No newly created key to copy.");
-          return;
-        }
-        try {
-          await navigator.clipboard.writeText(state.newestPlaintextKey);
-          setStatus("New key copied to clipboard.");
-        } catch (error) {
-          setStatus(`Copy failed: ${error.message}`);
-        }
-      }
-
-      async function testApi() {
-        const baseUrl = dom.baseUrl.value.trim();
-        const apiKey = dom.useApiKey.value.trim();
-        const model = dom.model.value.trim();
-        const prompt = dom.prompt.value.trim();
-
-        if (!apiKey) {
-          dom.output.textContent = "Enter an API key first.";
-          return;
+        if (!puterToken) {
+          throw new Error("Could not get Puter token from sign-in.");
         }
 
-        dom.output.textContent = "Loading...";
-        try {
-          const response = await fetch(`${baseUrl}/v1/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model,
-              messages: [{ role: "user", content: prompt }]
-            })
-          });
-
-          const data = await response.json();
-          if (!response.ok) {
-            dom.output.textContent = JSON.stringify(data, null, 2);
-            return;
-          }
-
-          dom.output.textContent =
-            data?.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
-        } catch (error) {
-          dom.output.textContent = error?.message || String(error);
-        }
-      }
-
-      async function copyTemplateCode() {
-        try {
-          const code = buildTemplateCode();
-          await navigator.clipboard.writeText(code);
-          setStatus("Template code copied.");
-        } catch (error) {
-          setStatus(`Copy failed: ${error.message}`);
-        }
-      }
-
-      dom.tabButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          switchTab(button.dataset.tabTarget);
+        const data = await apiFetch("/auth/puter/signin", {
+          method: "POST",
+          body: JSON.stringify({ puterToken })
         });
-      });
 
-      dom.signInBtn.addEventListener("click", signIn);
-      dom.signOutBtn.addEventListener("click", signOut);
-      dom.createKeyBtn.addEventListener("click", createKey);
-      dom.refreshKeysBtn.addEventListener("click", () => loadKeys().catch((error) => setStatus(error.message)));
-      dom.copyNewKeyBtn.addEventListener("click", copyNewestKey);
-      dom.sendBtn.addEventListener("click", testApi);
-      dom.copyTemplateBtn.addEventListener("click", copyTemplateCode);
-      dom.refreshAnalyticsBtn.addEventListener("click", () => {
-        loadAnalyticsSnapshot()
-          .then(() => setAnalyticsLiveState("snapshot refreshed", "ok"))
-          .catch((error) =>
-            setAnalyticsLiveState(`snapshot failed (${error.message})`, "error")
-          );
-      });
-      dom.templateType.addEventListener("change", refreshTemplateCode);
-      dom.baseUrl.addEventListener("input", refreshTemplateCode);
-      dom.useApiKey.addEventListener("input", refreshTemplateCode);
-      dom.model.addEventListener("input", refreshTemplateCode);
-      dom.prompt.addEventListener("input", refreshTemplateCode);
-      window.addEventListener("beforeunload", closeAnalyticsStream);
+        setSessionToken(data.sessionToken);
+        state.user = data.user;
+        state.authMode = "session";
+        setStatus(`Signed in as ${data.user.username}.`);
+        renderAuth();
+        await loadKeys();
+        switchTab("keys");
+      } catch (error) {
+        setStatus(error.message || String(error));
+      }
+    }
 
+    async function signOut() {
+      try {
+        if (state.sessionToken) {
+          await apiFetch("/auth/signout", { method: "POST", body: "{}" });
+        }
+      } catch {
+        // No action needed.
+      }
+
+      try {
+        if (puter.auth.isSignedIn()) {
+          puter.auth.signOut();
+        }
+      } catch {
+        // No action needed.
+      }
+
+      setSessionToken("");
+      state.user = null;
+      state.authMode = "none";
+      state.requiresSignIn = true;
+      state.keys = [];
+      state.newestPlaintextKey = "";
+      dom.newKeyBox.style.display = "none";
+      dom.copyNewKeyBtn.style.display = "none";
       renderAuth();
       renderKeys();
-      renderAnalytics();
-      if (navigator.platform && navigator.platform.toLowerCase().includes("win")) {
-        dom.templateType.value = "powershell";
-      }
-      refreshTemplateCode();
+      setStatus("Signed out.");
       switchTab("auth");
-      syncSession();
-      loadAnalyticsSnapshot().catch((error) =>
-        setAnalyticsLiveState(`snapshot failed (${error.message})`, "error")
-      );
-      connectAnalyticsStream();
-    </script>
-  </body>
+    }
+
+    async function loadKeys() {
+      if (!canManageKeys()) {
+        state.keys = [];
+        renderKeys();
+        return;
+      }
+
+      const result = await apiFetch("/v1/keys", { method: "GET" });
+      state.keys = result.keys || [];
+      renderKeys();
+    }
+
+    async function createKey() {
+      try {
+        if (!canManageKeys()) {
+          throw new Error(
+            state.requiresSignIn
+              ? "Sign in first."
+              : "Configure PUTER_AUTH_TOKEN on the server first."
+          );
+        }
+
+        const name = dom.keyName.value.trim();
+        const result = await apiFetch("/v1/keys", {
+          method: "POST",
+          body: JSON.stringify({ name })
+        });
+
+        state.newestPlaintextKey = result.key.value;
+        dom.newKeyBox.textContent = `New key (save now, shown once): ${result.key.value}`;
+        dom.newKeyBox.style.display = "block";
+        dom.copyNewKeyBtn.style.display = "inline-block";
+        dom.useApiKey.value = result.key.value;
+        refreshTemplateCode();
+        setStatus("New API key created.");
+        await loadKeys();
+      } catch (error) {
+        setStatus(error.message);
+      }
+    }
+
+    async function revokeKey(keyId) {
+      if (!keyId) return;
+      try {
+        await apiFetch(`/v1/keys/${encodeURIComponent(keyId)}`, {
+          method: "DELETE"
+        });
+        setStatus("Key revoked.");
+        await loadKeys();
+      } catch (error) {
+        setStatus(error.message);
+      }
+    }
+
+    async function copyStoredKey(keyId) {
+      if (!keyId) return;
+      try {
+        const result = await apiFetch(`/v1/keys/${encodeURIComponent(keyId)}/reveal`, {
+          method: "GET"
+        });
+        const keyValue = result?.key?.value || "";
+        if (!keyValue) {
+          throw new Error("Key value not available.");
+        }
+
+        await navigator.clipboard.writeText(keyValue);
+        dom.useApiKey.value = keyValue;
+        refreshTemplateCode();
+        setStatus("API key copied to clipboard.");
+      } catch (error) {
+        setStatus(error.message || "Could not copy key.");
+      }
+    }
+
+    async function copyNewestKey() {
+      if (!state.newestPlaintextKey) {
+        setStatus("No newly created key to copy.");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(state.newestPlaintextKey);
+        setStatus("New key copied to clipboard.");
+      } catch (error) {
+        setStatus(`Copy failed: ${error.message}`);
+      }
+    }
+
+    async function testApi() {
+      const baseUrl = dom.baseUrl.value.trim();
+      const apiKey = dom.useApiKey.value.trim();
+      const model = dom.model.value.trim();
+      const prompt = dom.prompt.value.trim();
+
+      if (!apiKey) {
+        dom.output.textContent = "Enter an API key first.";
+        return;
+      }
+
+      dom.output.textContent = "Loading...";
+      try {
+        const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: prompt }]
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          dom.output.textContent = JSON.stringify(data, null, 2);
+          return;
+        }
+
+        dom.output.textContent =
+          data?.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
+      } catch (error) {
+        dom.output.textContent = error?.message || String(error);
+      }
+    }
+
+    async function copyTemplateCode() {
+      try {
+        const code = buildTemplateCode();
+        await navigator.clipboard.writeText(code);
+        setStatus("Template code copied.");
+      } catch (error) {
+        setStatus(`Copy failed: ${error.message}`);
+      }
+    }
+
+    dom.tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        switchTab(button.dataset.tabTarget);
+      });
+    });
+
+    dom.signInBtn.addEventListener("click", signIn);
+    dom.signOutBtn.addEventListener("click", signOut);
+    dom.createKeyBtn.addEventListener("click", createKey);
+    dom.refreshKeysBtn.addEventListener("click", () => loadKeys().catch((error) => setStatus(error.message)));
+    dom.copyNewKeyBtn.addEventListener("click", copyNewestKey);
+    dom.sendBtn.addEventListener("click", testApi);
+    dom.copyTemplateBtn.addEventListener("click", copyTemplateCode);
+    dom.addAccountBtn.addEventListener("click", addAccount);
+    dom.refreshAccountsBtn.addEventListener("click", () => loadAccounts().catch((error) => setAccountStatus(error.message)));
+    dom.signInAddAccountBtn.addEventListener("click", signInToAddAccount);
+    dom.refreshAnalyticsBtn.addEventListener("click", () => {
+      loadAnalyticsSnapshot()
+        .then(() => setAnalyticsLiveState("snapshot refreshed", "ok"))
+        .catch((error) =>
+          setAnalyticsLiveState(`snapshot failed (${error.message})`, "error")
+        );
+    });
+    dom.templateType.addEventListener("change", refreshTemplateCode);
+    dom.baseUrl.addEventListener("input", refreshTemplateCode);
+    dom.useApiKey.addEventListener("input", refreshTemplateCode);
+    dom.model.addEventListener("input", refreshTemplateCode);
+    dom.prompt.addEventListener("input", refreshTemplateCode);
+    window.addEventListener("beforeunload", closeAnalyticsStream);
+
+    renderAuth();
+    renderKeys();
+    renderAnalytics();
+    if (navigator.platform && navigator.platform.toLowerCase().includes("win")) {
+      dom.templateType.value = "powershell";
+    }
+    refreshTemplateCode();
+    switchTab("auth");
+    syncSession();
+    loadAccounts().catch(() => { });
+    loadAnalyticsSnapshot().catch((error) =>
+      setAnalyticsLiveState(`snapshot failed (${error.message})`, "error")
+    );
+    connectAnalyticsStream();
+  </script>
+</body>
+
 </html>
-
-

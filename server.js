@@ -35,6 +35,16 @@ const analyticsMaxEvents =
 const analyticsEvents = [];
 const analyticsStreamClients = new Set();
 let analyticsSequence = 0;
+
+// --- Fallback account pool ---
+const fallbackCooldownMs =
+  Number(process.env.FALLBACK_COOLDOWN_SECONDS || 60) * 1000;
+const envFallbackTokens = (process.env.PUTER_FALLBACK_TOKENS || "")
+  .split(",")
+  .map((t) => t.trim())
+  .filter(Boolean);
+// Runtime health map: token -> { failedAt, failCount, lastError }
+const accountHealth = new Map();
 const app = express();
 
 function ensureStore() {
@@ -45,7 +55,7 @@ function ensureStore() {
   if (!fs.existsSync(storePath)) {
     fs.writeFileSync(
       storePath,
-      JSON.stringify({ users: [], keys: [] }, null, 2),
+      JSON.stringify({ users: [], keys: [], accounts: [] }, null, 2),
       "utf8"
     );
   }
@@ -58,15 +68,150 @@ function loadStore() {
     const parsed = JSON.parse(raw);
     const users = Array.isArray(parsed?.users) ? parsed.users : [];
     const keys = Array.isArray(parsed?.keys) ? parsed.keys : [];
-    return { users, keys };
+    const accounts = Array.isArray(parsed?.accounts) ? parsed.accounts : [];
+    return { users, keys, accounts };
   } catch {
-    return { users: [], keys: [] };
+    return { users: [], keys: [], accounts: [] };
   }
 }
 
 function saveStore(store) {
   ensureStore();
   fs.writeFileSync(storePath, JSON.stringify(store, null, 2), "utf8");
+}
+
+function ensureBootstrapAccounts(store) {
+  const seen = new Set(store.accounts.map((a) => a.token));
+  let changed = false;
+  for (const token of envFallbackTokens) {
+    if (!seen.has(token)) {
+      store.accounts.push({
+        id: `acc_${crypto.randomUUID()}`,
+        label: `env-token-${store.accounts.length + 1}`,
+        token,
+        source: "env",
+        addedAt: new Date().toISOString()
+      });
+      seen.add(token);
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveStore(store);
+  }
+}
+
+function getAccountPool() {
+  const store = loadStore();
+  const tokens = [];
+  const seen = new Set();
+
+  // Primary bootstrap token first
+  if (bootstrapPuterToken && !seen.has(bootstrapPuterToken)) {
+    tokens.push({
+      id: "primary",
+      label: "Primary (PUTER_AUTH_TOKEN)",
+      token: bootstrapPuterToken,
+      source: "env-primary"
+    });
+    seen.add(bootstrapPuterToken);
+  }
+
+  // Then all stored accounts
+  for (const acc of store.accounts) {
+    if (acc.token && !seen.has(acc.token)) {
+      tokens.push(acc);
+      seen.add(acc.token);
+    }
+  }
+
+  return tokens;
+}
+
+function getAccountHealth(accountId) {
+  return accountHealth.get(accountId) || {
+    failedAt: null,
+    failCount: 0,
+    lastError: null
+  };
+}
+
+function markAccountFailed(accountId, error) {
+  const health = getAccountHealth(accountId);
+  health.failedAt = Date.now();
+  health.failCount += 1;
+  health.lastError = error?.message || String(error);
+  accountHealth.set(accountId, health);
+}
+
+function markAccountHealthy(accountId) {
+  accountHealth.set(accountId, {
+    failedAt: null,
+    failCount: 0,
+    lastError: null
+  });
+}
+
+function isAccountCoolingDown(accountId) {
+  const health = getAccountHealth(accountId);
+  if (!health.failedAt) {
+    return false;
+  }
+  return Date.now() - health.failedAt < fallbackCooldownMs;
+}
+
+async function callWithFallback(apiFn) {
+  const pool = getAccountPool();
+  if (pool.length === 0) {
+    throw new Error("No Puter accounts configured. Add at least one account.");
+  }
+
+  // Sort: healthy accounts first, cooling-down accounts last
+  const healthy = pool.filter((a) => !isAccountCoolingDown(a.id));
+  const coolingDown = pool.filter((a) => isAccountCoolingDown(a.id));
+  const ordered = [...healthy, ...coolingDown];
+
+  const errors = [];
+  for (const account of ordered) {
+    try {
+      const puter = getPuterClient(account.token);
+      const result = await apiFn(puter, account);
+      markAccountHealthy(account.id);
+      console.log(
+        `[Fallback] Success using account "${account.label}" (${account.id})`
+      );
+      return result;
+    } catch (error) {
+      markAccountFailed(account.id, error);
+      console.warn(
+        `[Fallback] Account "${account.label}" (${account.id}) failed: ${error?.message || error}`
+      );
+      errors.push({ account: account.label, error });
+    }
+  }
+
+  // All accounts failed
+  const lastError = errors[errors.length - 1]?.error;
+  const summary = errors
+    .map((e) => `${e.account}: ${e.error?.message || e.error}`)
+    .join("; ");
+  const finalError = new Error(
+    `All ${ordered.length} account(s) failed. Details: ${summary}`
+  );
+  if (lastError?.status) {
+    finalError.status = lastError.status;
+  }
+  if (lastError?.statusCode) {
+    finalError.statusCode = lastError.statusCode;
+  }
+  throw finalError;
+}
+
+function maskToken(token) {
+  if (!token || token.length < 12) {
+    return "****";
+  }
+  return token.slice(0, 8) + "****" + token.slice(-4);
 }
 
 function ensureBootstrapUser(store) {
@@ -611,10 +756,10 @@ function mapModelRecord(model) {
   const created =
     Number(
       model?.created ||
-        model?.created_at ||
-        model?.createdAt ||
-        model?.timestamp ||
-        0
+      model?.created_at ||
+      model?.createdAt ||
+      model?.timestamp ||
+      0
     ) || 0;
 
   return {
@@ -656,11 +801,11 @@ function mapProviderError(error) {
   const status =
     Number(
       error?.status ||
-        error?.statusCode ||
-        error?.response?.status ||
-        error?.response?.statusCode ||
-        error?.error?.status ||
-        0
+      error?.statusCode ||
+      error?.response?.status ||
+      error?.response?.statusCode ||
+      error?.error?.status ||
+      0
     ) || 0;
 
   const rawMessage =
@@ -910,6 +1055,10 @@ ensureStore();
 if (bootstrapEnabled) {
   const store = loadStore();
   ensureBootstrapUser(store);
+}
+{
+  const store = loadStore();
+  ensureBootstrapAccounts(store);
 }
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
@@ -1197,8 +1346,19 @@ async function handleModelsRequest(req, res) {
   }
 
   try {
-    const puter = getPuterClient(owner.puterToken);
-    const data = await getOpenAIModelList(puter);
+    const pool = getAccountPool();
+    const useFallback = pool.length > 0;
+
+    let data;
+    if (useFallback) {
+      data = await callWithFallback(async (puter) => {
+        return getOpenAIModelList(puter);
+      });
+    } else {
+      const puter = getPuterClient(owner.puterToken);
+      data = await getOpenAIModelList(puter);
+    }
+
     const requestedModelId =
       typeof req.params?.model === "string" ? req.params.model.trim() : "";
 
@@ -1235,6 +1395,180 @@ app.get("/v1/models", handleModelsRequest);
 app.get("/v1/models/:model", handleModelsRequest);
 app.get("/models", handleModelsRequest);
 app.get("/models/:model", handleModelsRequest);
+
+// --- Account management endpoints ---
+
+app.get("/v1/accounts", requireSession, (_req, res) => {
+  const pool = getAccountPool();
+  const accounts = pool.map((acc) => {
+    const health = getAccountHealth(acc.id);
+    return {
+      id: acc.id,
+      label: acc.label,
+      source: acc.source || "ui",
+      maskedToken: maskToken(acc.token),
+      status: health.failedAt
+        ? isAccountCoolingDown(acc.id)
+          ? "cooling-down"
+          : "failed"
+        : "healthy",
+      failCount: health.failCount,
+      lastError: health.lastError,
+      failedAt: health.failedAt
+        ? new Date(health.failedAt).toISOString()
+        : null
+    };
+  });
+
+  const healthyCount = accounts.filter((a) => a.status === "healthy").length;
+  return res.json({
+    ok: true,
+    total: accounts.length,
+    healthy: healthyCount,
+    failing: accounts.length - healthyCount,
+    accounts
+  });
+});
+
+app.post("/v1/accounts", requireSession, async (req, res) => {
+  const label = (req.body?.label || "").toString().trim() || "Untitled Account";
+  const token = (req.body?.token || "").toString().trim();
+
+  if (!token) {
+    return res.status(400).json({
+      error: {
+        message: "Missing Puter auth token",
+        type: "invalid_request_error"
+      }
+    });
+  }
+
+  // Verify the token works
+  try {
+    await verifyPuterToken(token);
+  } catch {
+    return res.status(400).json({
+      error: {
+        message: "Invalid Puter auth token — verification failed",
+        type: "invalid_request_error"
+      }
+    });
+  }
+
+  const store = loadStore();
+
+  // Check for duplicate tokens
+  const existingTokens = new Set(store.accounts.map((a) => a.token));
+  if (existingTokens.has(token) || token === bootstrapPuterToken) {
+    return res.status(409).json({
+      error: {
+        message: "This token is already in the account pool",
+        type: "duplicate_account"
+      }
+    });
+  }
+
+  const account = {
+    id: `acc_${crypto.randomUUID()}`,
+    label,
+    token,
+    source: "ui",
+    addedAt: new Date().toISOString()
+  };
+
+  store.accounts.push(account);
+  saveStore(store);
+
+  console.log(`[Accounts] Added account "${label}" (${account.id})`);
+
+  return res.status(201).json({
+    ok: true,
+    account: {
+      id: account.id,
+      label: account.label,
+      maskedToken: maskToken(account.token),
+      source: account.source,
+      addedAt: account.addedAt
+    }
+  });
+});
+
+app.delete("/v1/accounts/:id", requireSession, (req, res) => {
+  const accountId = req.params.id;
+
+  if (accountId === "primary") {
+    return res.status(400).json({
+      error: {
+        message:
+          "Cannot delete the primary account. Remove PUTER_AUTH_TOKEN from .env instead.",
+        type: "invalid_request_error"
+      }
+    });
+  }
+
+  const store = loadStore();
+  const index = store.accounts.findIndex((a) => a.id === accountId);
+  if (index === -1) {
+    return res.status(404).json({
+      error: {
+        message: "Account not found",
+        type: "not_found"
+      }
+    });
+  }
+
+  const removed = store.accounts.splice(index, 1)[0];
+  saveStore(store);
+  puterClientsByToken.delete(removed.token);
+  accountHealth.delete(accountId);
+
+  console.log(`[Accounts] Removed account "${removed.label}" (${accountId})`);
+
+  return res.json({ ok: true });
+});
+
+app.post("/v1/accounts/:id/test", requireSession, async (req, res) => {
+  const accountId = req.params.id;
+  const pool = getAccountPool();
+  const account = pool.find((a) => a.id === accountId);
+
+  if (!account) {
+    return res.status(404).json({
+      error: {
+        message: "Account not found",
+        type: "not_found"
+      }
+    });
+  }
+
+  try {
+    const user = await verifyPuterToken(account.token);
+    markAccountHealthy(accountId);
+    return res.json({
+      ok: true,
+      status: "healthy",
+      username: user.username
+    });
+  } catch (error) {
+    markAccountFailed(accountId, error);
+    return res.json({
+      ok: true,
+      status: "failed",
+      error: error?.message || "Verification failed"
+    });
+  }
+});
+
+app.get("/v1/accounts/health", requireSession, (_req, res) => {
+  const pool = getAccountPool();
+  const healthyCount = pool.filter((a) => !isAccountCoolingDown(a.id)).length;
+  return res.json({
+    ok: true,
+    total: pool.length,
+    healthy: healthyCount,
+    failing: pool.length - healthyCount
+  });
+});
 
 async function handleImageGenerations(req, res) {
   const owner = requireApiKeyOwner(req, res);
@@ -1288,13 +1622,23 @@ async function handleImageGenerations(req, res) {
   }
 
   try {
-    const puter = getPuterClient(owner.puterToken);
+    const pool = getAccountPool();
+    const useFallback = pool.length > 0;
     const imageOptions = buildImageOptions(req.body);
     const created = Math.floor(Date.now() / 1000);
     const data = [];
 
     for (let i = 0; i < imageCount; i += 1) {
-      const rawImage = await puter.ai.txt2img(imageOptions);
+      let rawImage;
+      if (useFallback) {
+        rawImage = await callWithFallback(async (puter) => {
+          return puter.ai.txt2img(imageOptions);
+        });
+      } else {
+        const puter = getPuterClient(owner.puterToken);
+        rawImage = await puter.ai.txt2img(imageOptions);
+      }
+
       const source = normalizeImageSource(rawImage);
       if (!source) {
         throw new Error("Image generation returned empty payload");
@@ -1347,14 +1691,23 @@ async function handleChatCompletions(req, res) {
   }
 
   try {
-    const puter = getPuterClient(owner.puterToken);
+    const pool = getAccountPool();
+    const useFallback = pool.length > 0;
     const completionId = `chatcmpl-${crypto.randomUUID()}`;
     const created = Math.floor(Date.now() / 1000);
     const options = buildChatOptions(req.body, { stream });
     const model = options.model;
 
     if (stream) {
-      const streamResult = await puter.ai.chat(input, options);
+      let streamResult;
+      if (useFallback) {
+        streamResult = await callWithFallback(async (puter) => {
+          return puter.ai.chat(input, options);
+        });
+      } else {
+        const puter = getPuterClient(owner.puterToken);
+        streamResult = await puter.ai.chat(input, options);
+      }
 
       res.status(200);
       res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
@@ -1477,7 +1830,15 @@ async function handleChatCompletions(req, res) {
       return;
     }
 
-    const raw = await puter.ai.chat(input, options);
+    let raw;
+    if (useFallback) {
+      raw = await callWithFallback(async (puter) => {
+        return puter.ai.chat(input, options);
+      });
+    } else {
+      const puter = getPuterClient(owner.puterToken);
+      raw = await puter.ai.chat(input, options);
+    }
     const content = normalizeModelOutput(raw);
 
     markKeyAsUsed(owner);
