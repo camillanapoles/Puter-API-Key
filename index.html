@@ -574,6 +574,7 @@
 
     <nav class="tab-nav" role="tablist" aria-label="API Studio Tabs">
       <button class="tab-btn is-active" data-tab-target="auth" aria-selected="true">Auth</button>
+      <button class="tab-btn" data-tab-target="dashboard" aria-selected="false">Dashboard</button>
       <button class="tab-btn" data-tab-target="accounts" aria-selected="false">Accounts</button>
       <button class="tab-btn" data-tab-target="keys" aria-selected="false">Keys</button>
       <button class="tab-btn" data-tab-target="playground" aria-selected="false">Playground</button>
@@ -593,6 +594,50 @@
         </div>
         <p class="small" id="userLine"></p>
         <div class="callout">Session stays in this browser via local storage. Sign out to clear it.</div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="dashboard">
+        <div class="panel-head">
+          <h2>Dashboard</h2>
+          <p>Quick-grab everything you need to plug this gateway into any OpenAI-compatible client: Base URL, API
+            Key, and a Puter model id.</p>
+        </div>
+
+        <div>
+          <label class="label" for="dashBaseUrl">Base URL</label>
+          <div class="row">
+            <input id="dashBaseUrl" readonly />
+            <button id="dashCopyBaseUrlBtn" class="btn-secondary" style="flex:0 0 auto">Copy</button>
+          </div>
+          <p class="small">OpenAI-compatible base URL. Append <code>/chat/completions</code>,
+            <code>/models</code>, etc.</p>
+        </div>
+
+        <div>
+          <label class="label" for="dashKeySelect">API Key</label>
+          <div class="row">
+            <select id="dashKeySelect">
+              <option value="">No keys yet — create one in the Keys tab.</option>
+            </select>
+            <button id="dashCopyKeyBtn" class="btn-secondary" style="flex:0 0 auto" disabled>Copy</button>
+            <button id="dashRefreshKeysBtn" class="btn-ghost" style="flex:0 0 auto">Refresh</button>
+          </div>
+          <p class="small" id="dashKeyHint">Pick one of your generated keys, then click Copy to put its plaintext
+            value on your clipboard.</p>
+        </div>
+
+        <div>
+          <label class="label" for="dashModelSelect">Model</label>
+          <div class="row">
+            <select id="dashModelSelect">
+              <option value="">Select an API key, then click Refresh to load Puter models.</option>
+            </select>
+            <button id="dashCopyModelBtn" class="btn-secondary" style="flex:0 0 auto" disabled>Copy ID</button>
+            <button id="dashRefreshModelsBtn" class="btn-ghost" style="flex:0 0 auto">Refresh</button>
+          </div>
+          <p class="small" id="dashModelHint">Models are fetched from Puter via <code>GET /v1/models</code>
+            using the selected API key.</p>
+        </div>
       </section>
 
       <section class="tab-panel" data-tab-panel="accounts">
@@ -778,6 +823,11 @@
         summary: createEmptyAnalyticsSummary(),
         stream: null,
         reconnectTimer: null
+      },
+      dashboard: {
+        models: [],
+        modelsLoadedForKeyId: "",
+        revealedKeyByKeyId: {}
       }
     };
 
@@ -820,6 +870,16 @@
       accountList: document.getElementById("accountList"),
       poolHealth: document.getElementById("poolHealth"),
       signInAddAccountBtn: document.getElementById("signInAddAccountBtn"),
+      dashBaseUrl: document.getElementById("dashBaseUrl"),
+      dashCopyBaseUrlBtn: document.getElementById("dashCopyBaseUrlBtn"),
+      dashKeySelect: document.getElementById("dashKeySelect"),
+      dashCopyKeyBtn: document.getElementById("dashCopyKeyBtn"),
+      dashRefreshKeysBtn: document.getElementById("dashRefreshKeysBtn"),
+      dashKeyHint: document.getElementById("dashKeyHint"),
+      dashModelSelect: document.getElementById("dashModelSelect"),
+      dashCopyModelBtn: document.getElementById("dashCopyModelBtn"),
+      dashRefreshModelsBtn: document.getElementById("dashRefreshModelsBtn"),
+      dashModelHint: document.getElementById("dashModelHint"),
       tabButtons: Array.from(document.querySelectorAll("[data-tab-target]")),
       tabPanels: Array.from(document.querySelectorAll("[data-tab-panel]"))
     };
@@ -1615,12 +1675,14 @@
       if (!canManageKeys()) {
         state.keys = [];
         renderKeys();
+        renderDashboardKeys();
         return;
       }
 
       const result = await apiFetch("/v1/keys", { method: "GET" });
       state.keys = result.keys || [];
       renderKeys();
+      renderDashboardKeys();
     }
 
     async function createKey() {
@@ -1746,6 +1808,227 @@
       }
     }
 
+    // --- Dashboard tab ---
+
+    function getDashboardBaseUrl() {
+      const origin = window.location.origin || "";
+      if (!origin || origin.startsWith("file:")) {
+        return "http://localhost:3000/v1";
+      }
+      return `${origin.replace(/\/$/, "")}/v1`;
+    }
+
+    function setDashKeyHint(message) {
+      if (dom.dashKeyHint) {
+        dom.dashKeyHint.textContent = message;
+      }
+    }
+
+    function setDashModelHint(message) {
+      if (dom.dashModelHint) {
+        dom.dashModelHint.textContent = message;
+      }
+    }
+
+    function renderDashboardKeys() {
+      if (!dom.dashKeySelect) return;
+      const previous = dom.dashKeySelect.value;
+      dom.dashKeySelect.innerHTML = "";
+
+      const usableKeys = (state.keys || []).filter(
+        (key) => !key.revokedAt && key.canCopy
+      );
+
+      if (!usableKeys.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = canManageKeys()
+          ? "No copyable keys yet — create one in the Keys tab."
+          : state.requiresSignIn
+            ? "Sign in to load your keys."
+            : "Configure PUTER_AUTH_TOKEN on the server to load keys.";
+        dom.dashKeySelect.appendChild(option);
+        dom.dashKeySelect.value = "";
+        dom.dashCopyKeyBtn.disabled = true;
+        clearDashboardModels();
+        return;
+      }
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Select an API key…";
+      dom.dashKeySelect.appendChild(placeholder);
+
+      for (const key of usableKeys) {
+        const option = document.createElement("option");
+        option.value = key.id;
+        option.textContent = `${key.name} (${key.maskedKey})`;
+        dom.dashKeySelect.appendChild(option);
+      }
+
+      const stillExists = usableKeys.some((key) => key.id === previous);
+      dom.dashKeySelect.value = stillExists ? previous : "";
+      dom.dashCopyKeyBtn.disabled = !dom.dashKeySelect.value;
+
+      if (!stillExists) {
+        clearDashboardModels();
+      }
+    }
+
+    function clearDashboardModels() {
+      if (!dom.dashModelSelect) return;
+      state.dashboard.models = [];
+      state.dashboard.modelsLoadedForKeyId = "";
+      dom.dashModelSelect.innerHTML = "";
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent =
+        "Select an API key, then click Refresh to load Puter models.";
+      dom.dashModelSelect.appendChild(option);
+      dom.dashModelSelect.value = "";
+      dom.dashCopyModelBtn.disabled = true;
+    }
+
+    function renderDashboardModels(models) {
+      if (!dom.dashModelSelect) return;
+      const previous = dom.dashModelSelect.value;
+      dom.dashModelSelect.innerHTML = "";
+
+      if (!models || !models.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No models returned by Puter.";
+        dom.dashModelSelect.appendChild(option);
+        dom.dashCopyModelBtn.disabled = true;
+        return;
+      }
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Select a model…";
+      dom.dashModelSelect.appendChild(placeholder);
+
+      for (const model of models) {
+        const option = document.createElement("option");
+        option.value = model.id;
+        const owner = model.owned_by ? ` — ${model.owned_by}` : "";
+        option.textContent = `${model.id}${owner}`;
+        dom.dashModelSelect.appendChild(option);
+      }
+
+      const stillExists = models.some((model) => model.id === previous);
+      dom.dashModelSelect.value = stillExists ? previous : "";
+      dom.dashCopyModelBtn.disabled = !dom.dashModelSelect.value;
+    }
+
+    async function revealDashboardKey(keyId) {
+      if (!keyId) {
+        throw new Error("Select an API key first.");
+      }
+      const cached = state.dashboard.revealedKeyByKeyId[keyId];
+      if (cached) {
+        return cached;
+      }
+      const result = await apiFetch(
+        `/v1/keys/${encodeURIComponent(keyId)}/reveal`,
+        { method: "GET" }
+      );
+      const value = result?.key?.value || "";
+      if (!value) {
+        throw new Error("Key value not available.");
+      }
+      state.dashboard.revealedKeyByKeyId[keyId] = value;
+      return value;
+    }
+
+    async function copyDashboardBaseUrl() {
+      try {
+        await navigator.clipboard.writeText(dom.dashBaseUrl.value);
+        setStatus("Base URL copied to clipboard.");
+      } catch (error) {
+        setStatus(`Copy failed: ${error.message}`);
+      }
+    }
+
+    async function copyDashboardKey() {
+      const keyId = dom.dashKeySelect.value;
+      if (!keyId) {
+        setDashKeyHint("Select a key first.");
+        return;
+      }
+      try {
+        const value = await revealDashboardKey(keyId);
+        await navigator.clipboard.writeText(value);
+        setDashKeyHint("API key copied to clipboard.");
+        setStatus("API key copied to clipboard.");
+      } catch (error) {
+        setDashKeyHint(error.message || "Could not copy key.");
+        setStatus(error.message || "Could not copy key.");
+      }
+    }
+
+    async function loadDashboardModels() {
+      const keyId = dom.dashKeySelect.value;
+      if (!keyId) {
+        setDashModelHint("Select an API key, then click Refresh to load Puter models.");
+        return;
+      }
+      setDashModelHint("Loading models from Puter…");
+      dom.dashRefreshModelsBtn.disabled = true;
+      try {
+        const apiKey = await revealDashboardKey(keyId);
+        const baseUrl = dom.dashBaseUrl.value || getDashboardBaseUrl();
+        const response = await fetch(`${baseUrl}/models`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${apiKey}`
+          }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message =
+            data?.error?.message || `Failed to load models (${response.status})`;
+          throw new Error(message);
+        }
+        const models = Array.isArray(data?.data) ? data.data : [];
+        state.dashboard.models = models;
+        state.dashboard.modelsLoadedForKeyId = keyId;
+        renderDashboardModels(models);
+        setDashModelHint(
+          models.length
+            ? `Loaded ${models.length} model${models.length === 1 ? "" : "s"} from Puter.`
+            : "No models returned by Puter."
+        );
+      } catch (error) {
+        clearDashboardModels();
+        setDashModelHint(error.message || "Could not load models.");
+      } finally {
+        dom.dashRefreshModelsBtn.disabled = false;
+      }
+    }
+
+    async function copyDashboardModelId() {
+      const modelId = dom.dashModelSelect.value;
+      if (!modelId) {
+        setDashModelHint("Select a model first.");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(modelId);
+        setDashModelHint(`Model id "${modelId}" copied to clipboard.`);
+        setStatus("Model id copied to clipboard.");
+      } catch (error) {
+        setDashModelHint(`Copy failed: ${error.message}`);
+      }
+    }
+
+    function initDashboard() {
+      if (!dom.dashBaseUrl) return;
+      dom.dashBaseUrl.value = getDashboardBaseUrl();
+      renderDashboardKeys();
+      clearDashboardModels();
+    }
+
     dom.tabButtons.forEach((button) => {
       button.addEventListener("click", () => {
         switchTab(button.dataset.tabTarget);
@@ -1774,11 +2057,33 @@
     dom.useApiKey.addEventListener("input", refreshTemplateCode);
     dom.model.addEventListener("input", refreshTemplateCode);
     dom.prompt.addEventListener("input", refreshTemplateCode);
+    dom.dashCopyBaseUrlBtn.addEventListener("click", copyDashboardBaseUrl);
+    dom.dashCopyKeyBtn.addEventListener("click", copyDashboardKey);
+    dom.dashRefreshKeysBtn.addEventListener("click", () =>
+      loadKeys().catch((error) => setDashKeyHint(error.message))
+    );
+    dom.dashKeySelect.addEventListener("change", () => {
+      dom.dashCopyKeyBtn.disabled = !dom.dashKeySelect.value;
+      if (
+        dom.dashKeySelect.value &&
+        dom.dashKeySelect.value !== state.dashboard.modelsLoadedForKeyId
+      ) {
+        clearDashboardModels();
+      }
+    });
+    dom.dashRefreshModelsBtn.addEventListener("click", () =>
+      loadDashboardModels().catch((error) => setDashModelHint(error.message))
+    );
+    dom.dashModelSelect.addEventListener("change", () => {
+      dom.dashCopyModelBtn.disabled = !dom.dashModelSelect.value;
+    });
+    dom.dashCopyModelBtn.addEventListener("click", copyDashboardModelId);
     window.addEventListener("beforeunload", closeAnalyticsStream);
 
     renderAuth();
     renderKeys();
     renderAnalytics();
+    initDashboard();
     if (navigator.platform && navigator.platform.toLowerCase().includes("win")) {
       dom.templateType.value = "powershell";
     }
