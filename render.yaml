@@ -1,0 +1,43 @@
+# Deploy do gateway no Render (backend público que a página no GitHub Pages alcança).
+# Como usar:
+#   1. No Render: New + > Blueprint > selecione este repositório.
+#   2. Defina PUTER_AUTH_TOKEN no serviço (ou faça login pela aba Auth após o deploy).
+#   3. Na página do GitHub Pages, preencha "Gateway URL" com a URL gerada pelo Render.
+services:
+  - type: web
+    name: puter-api-key
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+      - key: PUTER_API_ORIGIN
+        value: https://api.puter.com
+      - key: SESSION_TTL_HOURS
+        value: "24"
+      # Modelo padrão usado quando o cliente não envia "model".
+      - key: DEFAULT_CHAT_MODEL
+        value: fugu
+      # Cadeia de fallback quando o Puter rejeita um modelo (invalid_model).
+      - key: MODEL_ALIAS_FALLBACKS
+        value: claude-sonnet-4-5,gpt-5-nano
+      # Candidatos reais para cada alias estável. Deixe vazio para o servidor
+      # descobrir sozinho pela lista de modelos do Puter; preencha para fixar.
+      - key: FUGU_MODEL_CANDIDATES
+        sync: false
+      - key: CLAUDE_56_MODEL_CANDIDATES
+        sync: false
+      # Token Puter do modo sem login (opcional, mas recomendado no Render).
+      - key: PUTER_AUTH_TOKEN
+        sync: false
+      # Tokens extras para pool/fallback (opcional).
+      - key: PUTER_FALLBACK_TOKENS
+        sync: false

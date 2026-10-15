@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -551,10 +551,15 @@
       }
     }
   </style>
-  <script src="https://js.puter.com/v2/"></script>
+  <script src="https://js.puter.com/v2/" defer></script>
 </head>
 
 <body>
+  <noscript>
+    <p style="padding:12px;margin:0;background:#3b1113;color:#ffb4ab;border-bottom:1px solid #5c2427">
+      Este painel precisa de JavaScript para renderizar. Ative o JavaScript e recarregue a página.
+    </p>
+  </noscript>
   <div class="page">
     <header class="topbar">
       <div>
@@ -567,6 +572,16 @@
         <span id="keyCountPill" class="session-pill">0 keys</span>
       </div>
     </header>
+
+    <p class="status-banner" id="renderStatus" role="status">⏳ Renderizando interface no cliente…</p>
+
+    <div id="clientModeBox" class="status-banner" style="display:none">
+      <strong>🌐 Modo navegador (sem backend)</strong> — esta página está sendo servida como site estático
+      (ex.: GitHub Pages). O login funciona normalmente e o Playground chama o Puter direto do seu navegador,
+      usando a sua própria sessão. As abas <em>Keys</em>, <em>Accounts</em> e <em>Analytics</em> precisam do
+      gateway local (<code>node server.js</code>) e ficam desabilitadas aqui.<br />
+      <span class="small" id="clientModeHint"></span>
+    </div>
 
     <p class="status-banner" id="authStatus">
       Sign in with Puter, or configure PUTER_AUTH_TOKEN to use keys without sign-in.
@@ -660,7 +675,7 @@
         </div>
         <div>
           <label class="label" for="baseUrl">Gateway URL</label>
-          <input id="baseUrl" value="https://puter-api-key.onrender.com" />
+          <input id="baseUrl" value="" placeholder="https://seu-gateway.exemplo.com" />
         </div>
         <div>
           <label class="label" for="useApiKey">Use API Key</label>
@@ -752,6 +767,77 @@
   </div>
 
   <script>
+    // --- Client render hardening -------------------------------------------
+    // A interface deve pintar mesmo se o CDN do Puter demorar ou falhar.
+    const RENDER_BANNER = document.getElementById("renderStatus");
+
+    function markClientRendered(message) {
+      if (RENDER_BANNER) {
+        RENDER_BANNER.textContent = message;
+      }
+      document.documentElement.dataset.clientRendered = "true";
+    }
+
+    function markRenderError(message) {
+      if (RENDER_BANNER) {
+        RENDER_BANNER.textContent = `⚠️ Falha na renderização: ${message}`;
+        RENDER_BANNER.style.background = "#3b1113";
+        RENDER_BANNER.style.color = "#ffb4ab";
+      }
+    }
+
+    window.addEventListener("error", (event) => {
+      // Erros de recursos externos (ex.: CDN do Puter fora do ar) não devem
+      // derrubar a página — apenas registrar no banner.
+      const failedScript = event.target && event.target.tagName === "SCRIPT";
+      if (failedScript || (event.message && !document.documentElement.dataset.clientRendered)) {
+        markRenderError(event.message || "script externo indisponível");
+      }
+    }, true);
+
+    let puterResolve;
+    let puterReject;
+    const puterReady = new Promise((resolve, reject) => {
+      puterResolve = resolve;
+      puterReject = reject;
+    });
+
+    function onPuterScriptLoad() {
+      if (typeof window.puter !== "undefined" && window.puter.auth) {
+        puterResolve(window.puter);
+      } else {
+        puterReject(new Error("Puter.js não está disponível (CDN bloqueado ou fora do ar)."));
+      }
+    }
+
+    // O script é "defer": pode já estar pronto ou ainda estar carregando.
+    if (typeof window.puter !== "undefined" && window.puter.auth) {
+      puterResolve(window.puter);
+    } else {
+      window.addEventListener("load", () => {
+        if (typeof window.puter !== "undefined" && window.puter.auth) {
+          puterResolve(window.puter);
+        } else {
+          // Última tentativa: aguarda um pouco após o load.
+          setTimeout(onPuterScriptLoad, 1500);
+        }
+      });
+      // Timeout duro: não deixar o usuário esperando para sempre.
+      setTimeout(() => {
+        if (typeof window.puter === "undefined" || !window.puter.auth) {
+          puterReject(new Error("Puter.js não carregou (CDN indisponível?). Verifique sua conexão."));
+        }
+      }, 10000);
+    }
+
+    async function ensurePuter(timeoutMs = 8000) {
+      const timer = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Puter.js ainda não carregou. Aguarde alguns segundos e tente de novo.")), timeoutMs)
+      );
+      return Promise.race([puterReady, timer]);
+    }
+    // ------------------------------------------------------------------------
+
     const SESSION_STORAGE_KEY = "puter_gateway_session_token";
     const ANALYTICS_EVENT_LIMIT = 150;
 
@@ -765,8 +851,12 @@
       };
     }
 
+    const PUTER_TOKEN_STORAGE_KEY = "puter_gateway_puter_token";
+
     const state = {
-      sessionToken: localStorage.getItem(SESSION_STORAGE_KEY) || "",
+      sessionToken: "",
+      gatewayAvailable: null,
+      clientUser: null,
       user: null,
       authMode: "unknown",
       requiresSignIn: true,
@@ -825,6 +915,11 @@
     };
 
     function switchTab(tabName) {
+      const target = dom.tabButtons.find((button) => button.dataset.tabTarget === tabName);
+      if (target?.disabled) {
+        setStatus("Esta aba requer o gateway local (node server.js).");
+        return;
+      }
       state.activeTab = tabName;
       dom.tabButtons.forEach((button) => {
         const isActive = button.dataset.tabTarget === tabName;
@@ -841,13 +936,28 @@
       dom.authStatus.textContent = message;
     }
 
+    function sessionStorageKey() {
+      // Same-origin gateway keeps the legacy key; remote gateways get their own.
+      return isSameOriginGateway()
+        ? SESSION_STORAGE_KEY
+        : `${SESSION_STORAGE_KEY}:${gatewayBase()}`;
+    }
+
     function setSessionToken(token) {
       state.sessionToken = token || "";
       if (state.sessionToken) {
-        localStorage.setItem(SESSION_STORAGE_KEY, state.sessionToken);
+        localStorage.setItem(sessionStorageKey(), state.sessionToken);
       } else {
-        localStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem(sessionStorageKey());
       }
+    }
+
+    function readStoredSessionToken() {
+      return (
+        localStorage.getItem(sessionStorageKey()) ||
+        (isSameOriginGateway() ? localStorage.getItem(SESSION_STORAGE_KEY) : "") ||
+        ""
+      );
     }
 
     function canManageKeys() {
@@ -862,6 +972,19 @@
     }
 
     function renderAuth() {
+      if (state.authMode === "client") {
+        const username = state.clientUser?.username || "";
+        dom.sessionPill.textContent = username ? `Puter: ${username}` : "Puter conectado";
+        dom.signInBtn.textContent = "Reconectar Puter";
+        dom.signInBtn.disabled = false;
+        dom.signOutBtn.disabled = false;
+        if (dom.userLine) {
+          dom.userLine.textContent = username
+            ? `Conta Puter: ${username} (sessão local do navegador)`
+            : "Conta Puter conectada (sessão local do navegador)";
+        }
+        return;
+      }
       const isBootstrap = state.authMode === "bootstrap";
       if (state.user) {
         if (isBootstrap) {
@@ -1085,6 +1208,9 @@
     }
 
     async function loadAccounts() {
+      if (state.gatewayAvailable === false) {
+        return;
+      }
       try {
         const result = await apiFetch("/v1/accounts", { method: "GET" });
         renderPoolHealth(result);
@@ -1152,8 +1278,9 @@
     }
 
     async function signInToAddAccount() {
-      setAccountStatus("Opening Puter sign-in popup...");
+      setAccountStatus("Abrindo login do Puter…");
       try {
+        const puter = await ensurePuter();
         // Force a fresh sign-in popup so the user can pick a different account
         let puterToken = "";
         const result = await puter.auth.signIn();
@@ -1168,9 +1295,8 @@
         // Try to get the username for a nicer label
         let label = "Puter Account";
         try {
-          const whoami = await fetch("/auth/puter/signin", {
+          const whoami = await apiFetch("/auth/puter/signin", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ puterToken })
           });
           const whoamiData = await whoami.json();
@@ -1311,6 +1437,9 @@
     }
 
     async function loadAnalyticsSnapshot() {
+      if (state.gatewayAvailable === false) {
+        return;
+      }
       const result = await apiFetch(`/v1/analytics?limit=${ANALYTICS_EVENT_LIMIT}`, {
         method: "GET"
       });
@@ -1344,13 +1473,21 @@
     }
 
     function connectAnalyticsStream() {
+      if (state.gatewayAvailable === false) {
+        setAnalyticsLiveState("indisponível no modo navegador", "idle");
+        return;
+      }
+      if (typeof EventSource === "undefined") {
+        setAnalyticsLiveState("EventSource não suportado neste navegador", "idle");
+        return;
+      }
       if (state.analytics.stream) {
         state.analytics.stream.close();
         state.analytics.stream = null;
       }
 
       setAnalyticsLiveState("connecting...", "idle");
-      const stream = new EventSource("/v1/analytics/stream");
+      const stream = new EventSource(resolveGatewayUrl("/v1/analytics/stream"));
       state.analytics.stream = stream;
 
       stream.addEventListener("open", () => {
@@ -1415,7 +1552,7 @@
     }
 
     function buildTemplateCode() {
-      const baseUrl = dom.baseUrl.value.trim() || "https://puter-api-key.onrender.com";
+      const baseUrl = dom.baseUrl.value.trim() || window.location.origin;
       const apiKey = dom.useApiKey.value.trim() || "sk_your_api_key_here";
       const model = dom.model.value.trim() || "gpt-5-nano";
       const prompt = dom.prompt.value.trim() || "Hello";
@@ -1496,6 +1633,23 @@
       dom.templateCode.textContent = buildTemplateCode();
     }
 
+    function gatewayBase() {
+      const configured = (dom.baseUrl?.value || "").trim().replace(/\/+$/, "");
+      return configured || window.location.origin;
+    }
+
+    function isSameOriginGateway() {
+      return gatewayBase() === window.location.origin;
+    }
+
+    function resolveGatewayUrl(path) {
+      const base = gatewayBase();
+      if (!base || base === window.location.origin) {
+        return path;
+      }
+      return `${base}${path}`;
+    }
+
     async function apiFetch(path, options = {}) {
       const headers = {
         ...(options.headers || {}),
@@ -1505,7 +1659,7 @@
         headers.Authorization = `Bearer ${state.sessionToken}`;
       }
 
-      const response = await fetch(path, {
+      const response = await fetch(resolveGatewayUrl(path), {
         ...options,
         headers
       });
@@ -1518,7 +1672,109 @@
       return data;
     }
 
+    async function probeGateway() {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3000);
+        const response = await fetch(resolveGatewayUrl("/health"), { signal: controller.signal });
+        clearTimeout(timer);
+        const payload = await response.json().catch(() => ({}));
+        return response.ok && payload?.service === "puter-ai-key-gateway";
+      } catch {
+        return false;
+      }
+    }
+
+    function isClientMode() {
+      return state.gatewayAvailable === false;
+    }
+
+    let gatewayReprobeTimer = null;
+    function scheduleGatewayReprobe() {
+      if (gatewayReprobeTimer) {
+        clearTimeout(gatewayReprobeTimer);
+      }
+      gatewayReprobeTimer = setTimeout(() => {
+        gatewayReprobeTimer = null;
+        syncSession().catch(() => { });
+      }, 600);
+    }
+
+    function applyGatewayMode(available) {
+      state.gatewayAvailable = available;
+      const box = document.getElementById("clientModeBox");
+      if (!box) return;
+      if (available) {
+        box.style.display = "none";
+        return;
+      }
+      box.style.display = "block";
+      const hint = document.getElementById("clientModeHint");
+      if (hint) {
+        hint.textContent =
+          "Para gerar chaves sk- e usar os endpoints /v1, rode o gateway local (node server.js) e abra esta página por ele.";
+      }
+      // Server-backed tabs cannot work on a static host.
+      ["accounts", "keys", "analytics"].forEach((tabName) => {
+        const button = dom.tabButtons.find((b) => b.dataset.tabTarget === tabName);
+        if (button) {
+          button.disabled = true;
+          button.title = "Requer o gateway local";
+          button.style.opacity = "0.45";
+        }
+      });
+      if (["accounts", "keys", "analytics"].includes(state.activeTab)) {
+        switchTab("auth");
+      }
+    }
+
     async function syncSession() {
+      const gatewayAvailable = await probeGateway();
+      applyGatewayMode(gatewayAvailable);
+
+      if (!gatewayAvailable) {
+        closeAnalyticsStream();
+        renderAnalytics();
+        setAnalyticsLiveState("indisponível no modo navegador", "idle");
+        // Static hosting (GitHub Pages): no backend session. Restore the local
+        // Puter sign-in if the browser already has one.
+        try {
+          const puter = await ensurePuter(6000);
+          if (puter.auth.isSignedIn()) {
+            const user = await puter.auth.getUser().catch(() => null);
+            state.clientUser = user || null;
+            state.authMode = "client";
+            state.requiresSignIn = false;
+            renderAuth();
+            setStatus(
+              user?.username
+                ? `Sessão Puter ativa neste navegador: ${user.username}.`
+                : "Sessão Puter ativa neste navegador."
+            );
+            markClientRendered(
+              `✓ Interface renderizada no cliente • Puter.js conectado • ${new Date().toLocaleTimeString()}`
+            );
+            return;
+          }
+        } catch {
+          // Puter not loaded yet — the sign-in button reports it on click.
+        }
+        state.authMode = "none";
+        state.requiresSignIn = true;
+        renderAuth();
+        setStatus("Clique em Sign In With Puter para conectar sua conta.");
+        markClientRendered(
+          `✓ Interface renderizada no cliente • modo navegador • ${new Date().toLocaleTimeString()}`
+        );
+        return;
+      }
+
+      loadAccounts().catch(() => { });
+      loadAnalyticsSnapshot().catch((error) =>
+        setAnalyticsLiveState(`snapshot failed (${error.message})`, "error")
+      );
+      connectAnalyticsStream();
+
       try {
         const me = await apiFetch("/auth/me", { method: "GET" });
         state.user = me.user || null;
@@ -1548,7 +1804,21 @@
 
     async function signIn() {
       try {
-        setStatus("Opening Puter sign-in popup...");
+        setStatus("Abrindo login do Puter…");
+
+        let puter;
+        try {
+          puter = await ensurePuter();
+        } catch (puterError) {
+          const insideIframe = window.self !== window.top;
+          setStatus(
+            (puterError?.message || String(puterError)) +
+            (insideIframe
+              ? " Dica: se estiver dentro de um preview incorporado, abra a página em nova aba e tente novamente."
+              : "")
+          );
+          return;
+        }
 
         const localPuterToken = localStorage.getItem("puter.auth.token") || "";
         let puterToken = "";
@@ -1561,6 +1831,27 @@
 
         if (!puterToken) {
           throw new Error("Could not get Puter token from sign-in.");
+        }
+
+        if (isClientMode()) {
+          // Static hosting: keep the session in this browser only. Never
+          // display or transmit the token anywhere.
+          localStorage.setItem(PUTER_TOKEN_STORAGE_KEY, puterToken);
+          const user = await puter.auth.getUser().catch(() => null);
+          state.clientUser = user || null;
+          state.authMode = "client";
+          state.requiresSignIn = false;
+          renderAuth();
+          setStatus(
+            user?.username
+              ? `Conectado como ${user.username} (sessão local do navegador).`
+              : "Conectado ao Puter (sessão local do navegador)."
+          );
+          markClientRendered(
+            `✓ Interface renderizada no cliente • Puter.js conectado • ${new Date().toLocaleTimeString()}`
+          );
+          switchTab("playground");
+          return;
         }
 
         const data = await apiFetch("/auth/puter/signin", {
@@ -1590,6 +1881,7 @@
       }
 
       try {
+        const puter = await ensurePuter(2000);
         if (puter.auth.isSignedIn()) {
           puter.auth.signOut();
         }
@@ -1598,7 +1890,9 @@
       }
 
       setSessionToken("");
+      localStorage.removeItem(PUTER_TOKEN_STORAGE_KEY);
       state.user = null;
+      state.clientUser = null;
       state.authMode = "none";
       state.requiresSignIn = true;
       state.keys = [];
@@ -1612,6 +1906,11 @@
     }
 
     async function loadKeys() {
+      if (isClientMode()) {
+        state.keys = [];
+        renderKeys();
+        return;
+      }
       if (!canManageKeys()) {
         state.keys = [];
         renderKeys();
@@ -1704,6 +2003,42 @@
       const model = dom.model.value.trim();
       const prompt = dom.prompt.value.trim();
 
+      if (isClientMode()) {
+        // Static hosting: talk to Puter straight from the browser using the
+        // signed-in session. No gateway key is required (or possible) here.
+        try {
+          const puter = await ensurePuter();
+          if (!puter.auth.isSignedIn()) {
+            dom.output.textContent =
+              "Conecte sua conta Puter na aba Auth antes de enviar uma mensagem.";
+            return;
+          }
+          dom.output.textContent = "Enviando para o Puter…";
+          const stream = await puter.ai.chat(prompt, { model, stream: true });
+          let text = "";
+          if (stream && typeof stream[Symbol.asyncIterator] === "function") {
+            for await (const part of stream) {
+              const piece = part?.text ?? part?.message?.content ?? "";
+              if (!piece) continue;
+              text = piece.startsWith(text) ? piece : text + piece;
+              dom.output.textContent = text;
+            }
+          } else {
+            text =
+              stream?.message?.content ??
+              stream?.text ??
+              (typeof stream === "string" ? stream : JSON.stringify(stream, null, 2));
+            dom.output.textContent = text;
+          }
+          if (!text) {
+            dom.output.textContent = "(resposta vazia)";
+          }
+        } catch (error) {
+          dom.output.textContent = error?.message || String(error);
+        }
+        return;
+      }
+
       if (!apiKey) {
         dom.output.textContent = "Enter an API key first.";
         return;
@@ -1711,7 +2046,7 @@
 
       dom.output.textContent = "Loading...";
       try {
-        const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+        const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/v1/chat/completions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1770,12 +2105,19 @@
         );
     });
     dom.templateType.addEventListener("change", refreshTemplateCode);
-    dom.baseUrl.addEventListener("input", refreshTemplateCode);
+    dom.baseUrl.addEventListener("input", () => {
+      refreshTemplateCode();
+      scheduleGatewayReprobe();
+    });
     dom.useApiKey.addEventListener("input", refreshTemplateCode);
     dom.model.addEventListener("input", refreshTemplateCode);
     dom.prompt.addEventListener("input", refreshTemplateCode);
     window.addEventListener("beforeunload", closeAnalyticsStream);
 
+    if (!dom.baseUrl.value.trim()) {
+      dom.baseUrl.value = window.location.origin;
+    }
+    state.sessionToken = readStoredSessionToken();
     renderAuth();
     renderKeys();
     renderAnalytics();
@@ -1784,12 +2126,8 @@
     }
     refreshTemplateCode();
     switchTab("auth");
+    // Boot: syncSession() descobre se há backend e só então liga accounts/analytics.
     syncSession();
-    loadAccounts().catch(() => { });
-    loadAnalyticsSnapshot().catch((error) =>
-      setAnalyticsLiveState(`snapshot failed (${error.message})`, "error")
-    );
-    connectAnalyticsStream();
   </script>
 </body>
 
