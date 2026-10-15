@@ -13,7 +13,29 @@ const port = Number(process.env.PORT || 3000);
 const puterApiOrigin = process.env.PUTER_API_ORIGIN || "https://api.puter.com";
 const sessionTtlMs = Number(process.env.SESSION_TTL_HOURS || 24) * 60 * 60 * 1000;
 const defaultChatModel =
-  (process.env.DEFAULT_CHAT_MODEL || "").trim() || "gpt-5-nano";
+  (process.env.DEFAULT_CHAT_MODEL || "").trim() || "fugu";
+const host = (process.env.HOST || "0.0.0.0").trim();
+// Stable aliases so clients never break when Puter renames a model.
+// Each alias is resolved at request time against the live model list.
+const modelAliasCandidates = {
+  fugu: (process.env.FUGU_MODEL_CANDIDATES || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+  "claude-5.6": (process.env.CLAUDE_56_MODEL_CANDIDATES || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+};
+const modelAliasFallbacks = (
+  process.env.MODEL_ALIAS_FALLBACKS || "claude-sonnet-4-5,gpt-5-nano"
+)
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const modelListCacheTtlMs =
+  Number(process.env.MODEL_LIST_CACHE_SECONDS || 600) * 1000;
+const modelListCache = new Map();
 const bootstrapPuterToken = (process.env.PUTER_AUTH_TOKEN || "").trim();
 const bootstrapApiKeys = new Set(
   (process.env.APP_API_KEYS || "")
@@ -708,9 +730,136 @@ function buildImageOptions(body) {
   return options;
 }
 
-function buildChatOptions(body, { stream = false } = {}) {
+function normalizeModelId(value) {
+  return value.toString().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function scoreModelCandidate(requested, candidateId) {
+  const requestedNormalized = normalizeModelId(requested);
+  const candidateNormalized = normalizeModelId(candidateId);
+  if (!requestedNormalized || !candidateNormalized) {
+    return 0;
+  }
+  if (candidateNormalized === requestedNormalized) {
+    return 100;
+  }
+
+  let score = 0;
+  if (candidateNormalized.includes(requestedNormalized)) {
+    score += 55;
+  }
+  if (requestedNormalized.includes(candidateNormalized)) {
+    score += 30;
+  }
+
+  const requestedTokens = requested
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const candidateTokens = candidateId
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const shared = requestedTokens.filter((token) => candidateTokens.includes(token));
+  score += shared.length * 12;
+
+  // Prefer the newest revision when several candidates match.
+  const versionMatch = candidateId.match(/(\d+)[.-](\d+)/);
+  if (versionMatch) {
+    score += Number(versionMatch[1]) * 2 + Number(versionMatch[2]) * 0.1;
+  }
+  if (/ultra|latest|newest/i.test(candidateId)) {
+    score += 6;
+  }
+
+  return score;
+}
+
+function buildChatModelCandidates(requestedModel, availableModels) {
+  const ids = Array.isArray(availableModels)
+    ? availableModels
+        .map((model) => (typeof model?.id === "string" ? model.id.trim() : ""))
+        .filter(Boolean)
+    : [];
+  const requested = (requestedModel || "").toString().trim();
+  if (!requested) {
+    return [defaultChatModel];
+  }
+
+  const aliasKey = Object.keys(modelAliasCandidates).find(
+    (alias) => normalizeModelId(alias) === normalizeModelId(requested)
+  );
+  const aliasCandidates = aliasKey ? modelAliasCandidates[aliasKey] : [];
+
+  const ordered = [];
+  const push = (id) => {
+    if (id && !ordered.includes(id)) {
+      ordered.push(id);
+    }
+  };
+
+  if (ids.includes(requested)) {
+    push(requested);
+  }
+  aliasCandidates.forEach(push);
+
+  if (aliasKey) {
+    const base = aliasKey.split(/[^a-zA-Z0-9]+/)[0];
+    ids
+      .filter((id) => id.toLowerCase().includes(base.toLowerCase()))
+      .sort((a, b) => scoreModelCandidate(aliasKey, b) - scoreModelCandidate(aliasKey, a))
+      .forEach(push);
+  } else if (!ids.includes(requested) && ids.length) {
+    ids
+      .map((id) => ({ id, score: scoreModelCandidate(requested, id) }))
+      .filter((entry) => entry.score >= 30)
+      .sort((a, b) => b.score - a.score)
+      .forEach((entry) => push(entry.id));
+  }
+
+  modelAliasFallbacks.forEach(push);
+  if (!ordered.length) {
+    push(requested);
+  }
+  push(defaultChatModel);
+
+  return ordered;
+}
+
+async function getCachedModelList({ useFallback, pool, owner }) {
+  const cacheKey = useFallback ? "pool" : `owner:${owner?.id || "unknown"}`;
+  const cached = modelListCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < modelListCacheTtlMs) {
+    return cached.models;
+  }
+
+  const models = useFallback
+    ? await callWithFallback((puter) => getOpenAIModelList(puter))
+    : await getOpenAIModelList(getPuterClient(owner.puterToken));
+
+  modelListCache.set(cacheKey, { at: Date.now(), models });
+  return models;
+}
+
+async function resolveChatModelCandidates(requestedModel, context) {
+  try {
+    const models = await getCachedModelList(context);
+    return buildChatModelCandidates(requestedModel, models);
+  } catch {
+    // Model discovery is best-effort: never block a request on it.
+    return [requestedModel || defaultChatModel];
+  }
+}
+
+function isInvalidModelError(error) {
+  return mapProviderError(error).type === "invalid_model";
+}
+
+function buildChatOptions(body, { stream = false, model } = {}) {
+  const resolvedModel =
+    (model || body?.model || defaultChatModel).toString().trim() || defaultChatModel;
   const options = {
-    model: (body?.model || defaultChatModel).toString().trim() || defaultChatModel
+    model: resolvedModel
   };
 
   if (typeof body?.temperature === "number") {
@@ -1062,7 +1211,46 @@ if (bootstrapEnabled) {
 }
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
-app.use(express.static("."));
+// Serve only the dashboard assets. Serving the whole repo would expose
+// .env, server.js and data/api-store.json (which holds Puter tokens).
+const publicAssetRoot = path.join(process.cwd(), "favicon_io");
+const noStoreHeaders = {
+  "Cache-Control": "no-store, max-age=0",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer-when-downgrade"
+};
+
+function sendIndexHtml(res) {
+  res.sendFile(path.join(process.cwd(), "index.html"), { headers: noStoreHeaders }, (error) => {
+    if (error && !res.headersSent) {
+      res.status(500).type("text/plain").send("Dashboard unavailable");
+    }
+  });
+}
+
+app.get(["/", "/index.html"], (_req, res) => sendIndexHtml(res));
+
+app.get("/favicon_io/*", (req, res) => {
+  const relative = req.path.replace(/^\/favicon_io\//, "");
+  if (!relative || relative.includes("..")) {
+    return res.status(404).end();
+  }
+  return res.sendFile(path.join(publicAssetRoot, relative), {
+    headers: { "Cache-Control": "public, max-age=3600" }
+  }, (error) => {
+    if (error && !res.headersSent) {
+      res.status(404).end();
+    }
+  });
+});
+
+app.get("/favicon.ico", (_req, res) =>
+  res.sendFile(path.join(publicAssetRoot, "favicon.ico"), (error) => {
+    if (error && !res.headersSent) {
+      res.status(404).end();
+    }
+  })
+);
 app.use(trackAnalyticsResponses);
 
 app.get("/health", (_req, res) => {
@@ -1359,11 +1547,28 @@ async function handleModelsRequest(req, res) {
       data = await getOpenAIModelList(puter);
     }
 
+    // Expose stable aliases alongside the live Puter ids so clients can pin
+    // "fugu" / "claude-5.6" even when Puter renames the underlying model.
+    for (const alias of Object.keys(modelAliasCandidates)) {
+      if (!data.some((model) => model.id === alias)) {
+        data.unshift({
+          id: alias,
+          object: "model",
+          created: 0,
+          owned_by: "puter-alias"
+        });
+      }
+    }
+
     const requestedModelId =
       typeof req.params?.model === "string" ? req.params.model.trim() : "";
 
     if (requestedModelId) {
-      const match = data.find((model) => model.id === requestedModelId);
+      const match = data.find(
+        (model) =>
+          model.id === requestedModelId ||
+          normalizeModelId(model.id) === normalizeModelId(requestedModelId)
+      );
       if (!match) {
         return res.status(404).json({
           error: {
@@ -1690,205 +1895,174 @@ async function handleChatCompletions(req, res) {
     });
   }
 
-  try {
-    const pool = getAccountPool();
-    const useFallback = pool.length > 0;
+  const requestedModel = (req.body?.model || defaultChatModel).toString().trim();
+  const pool = getAccountPool();
+  const useFallback = pool.length > 0;
+
+  const callPuter = (options) => {
+    if (useFallback) {
+      return callWithFallback((puter) => puter.ai.chat(input, options));
+    }
+    return getPuterClient(owner.puterToken).ai.chat(input, options);
+  };
+
+  // Stable aliases ("fugu", "claude-5.6") resolve to whatever id Puter is
+  // serving today; if Puter rejects one, walk to the next candidate.
+  const modelCandidates = await resolveChatModelCandidates(requestedModel, {
+    useFallback,
+    pool,
+    owner
+  });
+
+  let lastError = null;
+  for (const model of modelCandidates) {
+    const options = buildChatOptions(req.body, { stream, model });
+    let raw;
+    try {
+      raw = await callPuter(options);
+    } catch (error) {
+      lastError = error;
+      if (isInvalidModelError(error)) {
+        console.warn(
+          `[Model] "${model}" rejected (invalid_model) \u2014 trying next candidate`
+        );
+        continue;
+      }
+      break;
+    }
+
     const completionId = `chatcmpl-${crypto.randomUUID()}`;
     const created = Math.floor(Date.now() / 1000);
-    const options = buildChatOptions(req.body, { stream });
-    const model = options.model;
 
     if (stream) {
-      let streamResult;
-      if (useFallback) {
-        streamResult = await callWithFallback(async (puter) => {
-          return puter.ai.chat(input, options);
+      try {
+        res.status(200);
+        res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache, no-transform");
+        res.setHeader("Connection", "keep-alive");
+        if (typeof res.flushHeaders === "function") {
+          res.flushHeaders();
+        }
+
+        writeSseChunk(res, {
+          id: completionId,
+          object: "chat.completion.chunk",
+          created,
+          model,
+          choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }]
         });
-      } else {
-        const puter = getPuterClient(owner.puterToken);
-        streamResult = await puter.ai.chat(input, options);
-      }
 
-      res.status(200);
-      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-      res.setHeader("Cache-Control", "no-cache, no-transform");
-      res.setHeader("Connection", "keep-alive");
-      if (typeof res.flushHeaders === "function") {
-        res.flushHeaders();
-      }
+        const isAsyncIterable =
+          raw && typeof raw[Symbol.asyncIterator] === "function";
+        let emittedText = "";
+        let emittedAnyContent = false;
 
-      writeSseChunk(res, {
+        if (isAsyncIterable) {
+          for await (const chunk of raw) {
+            const chunkText = normalizeStreamChunkText(chunk);
+            if (!chunkText) {
+              continue;
+            }
+            let deltaText = chunkText;
+            if (chunkText.startsWith(emittedText)) {
+              deltaText = chunkText.slice(emittedText.length);
+              emittedText = chunkText;
+            } else {
+              emittedText += chunkText;
+            }
+            if (!deltaText) {
+              continue;
+            }
+            emittedAnyContent = true;
+            writeSseChunk(res, {
+              id: completionId,
+              object: "chat.completion.chunk",
+              created,
+              model,
+              choices: [{ index: 0, delta: { content: deltaText }, finish_reason: null }]
+            });
+          }
+        }
+
+        if (!emittedAnyContent) {
+          const content = normalizeModelOutput(raw);
+          if (content) {
+            writeSseChunk(res, {
+              id: completionId,
+              object: "chat.completion.chunk",
+              created,
+              model,
+              choices: [{ index: 0, delta: { content }, finish_reason: null }]
+            });
+          }
+        }
+
+        writeSseChunk(res, {
+          id: completionId,
+          object: "chat.completion.chunk",
+          created,
+          model,
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }]
+        });
+        res.write("data: [DONE]\n\n");
+        markKeyAsUsed(owner);
+        res.end();
+        return;
+      } catch (error) {
+        const mapped = mapProviderError(error);
+        if (res.headersSent) {
+          writeSseChunk(res, {
+            error: {
+              message: mapped.message,
+              type: mapped.type,
+              provider_status: mapped.providerStatus
+            }
+          });
+          res.write("data: [DONE]\n\n");
+          res.end();
+          return;
+        }
+        lastError = error;
+        break;
+      }
+    }
+
+    try {
+      const content = normalizeModelOutput(raw);
+      markKeyAsUsed(owner);
+      return res.json({
         id: completionId,
-        object: "chat.completion.chunk",
+        object: "chat.completion",
         created,
         model,
         choices: [
           {
             index: 0,
-            delta: { role: "assistant" },
-            finish_reason: null
-          }
-        ]
-      });
-
-      const isAsyncIterable =
-        streamResult && typeof streamResult[Symbol.asyncIterator] === "function";
-
-      let emittedText = "";
-      let emittedAnyContent = false;
-
-      if (isAsyncIterable) {
-        for await (const chunk of streamResult) {
-          const chunkText = normalizeStreamChunkText(chunk);
-          if (!chunkText) {
-            continue;
-          }
-
-          let deltaText = chunkText;
-          if (chunkText.startsWith(emittedText)) {
-            deltaText = chunkText.slice(emittedText.length);
-            emittedText = chunkText;
-          } else {
-            emittedText += chunkText;
-          }
-
-          if (!deltaText) {
-            continue;
-          }
-
-          emittedAnyContent = true;
-          writeSseChunk(res, {
-            id: completionId,
-            object: "chat.completion.chunk",
-            created,
-            model,
-            choices: [
-              {
-                index: 0,
-                delta: { content: deltaText },
-                finish_reason: null
-              }
-            ]
-          });
-        }
-      } else {
-        const content = normalizeModelOutput(streamResult);
-        if (content) {
-          emittedAnyContent = true;
-          writeSseChunk(res, {
-            id: completionId,
-            object: "chat.completion.chunk",
-            created,
-            model,
-            choices: [
-              {
-                index: 0,
-                delta: { content },
-                finish_reason: null
-              }
-            ]
-          });
-        }
-      }
-
-      if (!emittedAnyContent) {
-        const fallbackContent = normalizeModelOutput(streamResult);
-        if (fallbackContent) {
-          writeSseChunk(res, {
-            id: completionId,
-            object: "chat.completion.chunk",
-            created,
-            model,
-            choices: [
-              {
-                index: 0,
-                delta: { content: fallbackContent },
-                finish_reason: null
-              }
-            ]
-          });
-        }
-      }
-
-      writeSseChunk(res, {
-        id: completionId,
-        object: "chat.completion.chunk",
-        created,
-        model,
-        choices: [
-          {
-            index: 0,
-            delta: {},
+            message: { role: "assistant", content },
             finish_reason: "stop"
           }
         ]
       });
-      res.write("data: [DONE]\n\n");
-
-      markKeyAsUsed(owner);
-      res.end();
-      return;
+    } catch (error) {
+      lastError = error;
+      break;
     }
-
-    let raw;
-    if (useFallback) {
-      raw = await callWithFallback(async (puter) => {
-        return puter.ai.chat(input, options);
-      });
-    } else {
-      const puter = getPuterClient(owner.puterToken);
-      raw = await puter.ai.chat(input, options);
-    }
-    const content = normalizeModelOutput(raw);
-
-    markKeyAsUsed(owner);
-
-    return res.json({
-      id: completionId,
-      object: "chat.completion",
-      created,
-      model,
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: "assistant",
-            content
-          },
-          finish_reason: "stop"
-        }
-      ]
-    });
-  } catch (error) {
-    const mapped = mapProviderError(error);
-
-    if (stream && res.headersSent) {
-      writeSseChunk(res, {
-        error: {
-          message: mapped.message,
-          type: mapped.type,
-          provider_status: mapped.providerStatus
-        }
-      });
-      res.write("data: [DONE]\n\n");
-      res.end();
-      return;
-    }
-
-    return res.status(mapped.status).json({
-      error: {
-        message: mapped.message,
-        type: mapped.type,
-        provider_status: mapped.providerStatus
-      }
-    });
   }
+
+  const mapped = mapProviderError(lastError || new Error("Model request failed"));
+  return res.status(mapped.status).json({
+    error: {
+      message: mapped.message,
+      type: mapped.type,
+      provider_status: mapped.providerStatus
+    }
+  });
 }
 
 app.post("/v1/chat/completions", handleChatCompletions);
 app.post("/chat/completions", handleChatCompletions);
 
-app.listen(port, () => {
-  console.log(`Gateway running on http://localhost:${port}`);
+app.listen(port, host, () => {
+  console.log(`Gateway listening on ${host}:${port}`);
 });
 

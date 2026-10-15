@@ -9,6 +9,47 @@ How it works:
 - Keys are stored in `data/api-store.json`.
 - API calls use the Puter token of the account that created the key.
 
+## Two run modes (same page)
+
+| Mode | Where | What works |
+| --- | --- | --- |
+| **Gateway** | `node server.js` (local or Render) | everything: sign-in, `sk-...` keys, account pool, OpenAI-compatible `/v1/*`, analytics |
+| **Browser** | static host (GitHub Pages) | Puter sign-in + Playground calling `puter.ai.chat` directly. No `sk-...` keys (no backend) |
+
+The page detects the mode at boot via `GET {gatewayBase}/health`. Without a gateway it
+switches to browser mode and disables the `Keys`, `Accounts` and `Analytics` tabs with a
+visible notice instead of failing silently.
+
+The **Gateway URL** field (Playground tab) is the base for every call and accepts a
+different origin, so the GitHub Pages site can talk to a gateway on Render. The session
+token is stored per gateway (`puter_gateway_session_token:{url}`).
+
+### Model aliases
+
+`DEFAULT_CHAT_MODEL=fugu`. `POST /v1/chat/completions` also accepts the stable aliases
+`fugu` and `claude-5.6`. Each alias resolves against the live Puter model list
+(cached 10 min): exact id → alias candidates → ranked fuzzy matches →
+`MODEL_ALIAS_FALLBACKS` → default. If Puter answers `invalid_model`, the next candidate
+is tried automatically (streaming included). `GET /v1/models` lists the aliases too.
+
+Configure with `FUGU_MODEL_CANDIDATES` / `CLAUDE_56_MODEL_CANDIDATES` to pin real ids.
+
+### Deploy the gateway on Render
+
+`render.yaml` is included: Render → **New +** → **Blueprint** → pick this repo → set
+`PUTER_AUTH_TOKEN` (or sign in from the Auth tab after deploy). Then put the Render URL
+in the page's **Gateway URL** field.
+
+### Client render check
+
+```bash
+node server.js          # terminal 1
+npm run probe:render    # terminal 2 -> expects RENDER-PROBE: PASS
+```
+
+The probe drives the served page with jsdom while blocking `js.puter.com`, asserting the
+UI still renders, tabs stay clickable, and errors are reported on-page.
+
 ## 1) Install
 
 ```bash
@@ -108,4 +149,7 @@ Compatibility notes:
 - New keys store both hash (for auth check) and secret value (for copy/reveal).
 - Older keys created before this update may show `No Secret`; create a new key if needed.
 - If Puter token changes/expires, sign in again in the dashboard.
+- The server never exposes repo files: only `/`, `/index.html`, `/favicon.ico` and
+  `/favicon_io/*` are served. `.env`, `server.js` and `data/api-store.json` return 404.
+- See `CONTINUITY.md` for the agent hand-off checklist (state, checks, pending verification).
 - `data/api-store.json` is git-ignored by default.
