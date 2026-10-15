@@ -573,6 +573,12 @@
       Sign in with Puter, or configure PUTER_AUTH_TOKEN to use keys without sign-in.
     </p>
     <p class="status-banner" id="renderStatus" role="status">⏳ Renderizando interface no cliente…</p>
+    <div id="captureBox" class="status-banner" style="display:none">
+      <strong>✅ Token Puter capturado e salvo neste navegador</strong> (variável local <code>puter_gateway_puter_token</code>).<br />
+      Cole este token no chat do agente para ele continuar sem novo login:<br />
+      <input id="capturedToken" type="text" readonly style="width:100%;margin:8px 0;font-family:var(--mono)" />
+      <button id="copyTokenBtn" type="button">📋 Copiar token</button>
+    </div>
     <noscript><p class="status-banner">⚠️ Ative o JavaScript — esta página renderiza 100% no cliente.</p></noscript>
 
     <nav class="tab-nav" role="tablist" aria-label="API Studio Tabs">
@@ -1579,10 +1585,21 @@
           throw new Error("Could not get Puter token from sign-in.");
         }
 
-        const data = await apiFetch("/auth/puter/signin", {
-          method: "POST",
-          body: JSON.stringify({ puterToken })
-        });
+        // Captura continua mesmo sem backend (GitHub Pages): salva o token como variavel local.
+        try {
+          var data = await apiFetch("/auth/puter/signin", {
+            method: "POST",
+            body: JSON.stringify({ puterToken })
+          });
+        } catch (backendError) {
+          localStorage.setItem("puter_gateway_puter_token", puterToken);
+          const box = document.getElementById("captureBox");
+          document.getElementById("capturedToken").value = puterToken;
+          if (box) box.style.display = "block";
+          setStatus("✅ Conectado ao Puter! Token salvo neste navegador — copie no quadro acima e cole no chat do agente.");
+          renderAuth();
+          return;
+        }
 
         setSessionToken(data.sessionToken);
         state.user = data.user;
@@ -1767,6 +1784,18 @@
         switchTab(button.dataset.tabTarget);
       });
     });
+
+    document.getElementById("copyTokenBtn")?.addEventListener("click", async () => {
+      const input = document.getElementById("capturedToken");
+      try { await navigator.clipboard.writeText(input.value); setStatus("📋 Token copiado — cole no chat do agente."); }
+      catch { input.select(); document.execCommand("copy"); setStatus("📋 Token copiado — cole no chat do agente."); }
+    });
+    // Se ja houver token capturado (modo Pages), reexibe o quadro ao abrir.
+    const savedCapture = localStorage.getItem("puter_gateway_puter_token");
+    if (savedCapture) {
+      document.getElementById("capturedToken").value = savedCapture;
+      document.getElementById("captureBox").style.display = "block";
+    }
 
     dom.signInBtn.addEventListener("click", signIn);
     dom.signOutBtn.addEventListener("click", signOut);
