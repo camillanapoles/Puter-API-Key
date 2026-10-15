@@ -47,3 +47,10 @@ curl -s http://localhost:3000/v1/chat/completions -H "Content-Type: application/
 ## Checklist do próximo agente
 1. `npm run resume` → 2. servidor DOWN? `npm start` → 3. sem conta? pedir login na página
 → 4. sem key? pedir criação na aba Keys → 5. testar chat com `fugu` → 6. relatar `model` retornado (id real usado).
+
+## Renderização cliente (garantia)
+- `index.html`: script do Puter com `defer` (não bloqueia o 1º paint), `ensurePuter()` antes de
+  qualquer `puter.*`, banner `#renderStatus` + `documentElement.dataset.clientRendered="true"`
+  ao fim da init, `<noscript>` e listener de erro que mostra falha na página (nunca tela branca silenciosa).
+- Prova: `npm i -D jsdom && npm run probe:render` -> espera `RENDER-PROBE: PASS`
+  (renderiza e troca de aba até com js.puter.com inacessível).

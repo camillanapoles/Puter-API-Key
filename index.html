@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -551,7 +551,8 @@
       }
     }
   </style>
-  <script src="https://js.puter.com/v2/"></script>
+  <!-- defer: never block first paint on the Puter CDN. App guards `typeof puter` before use. -->
+  <script defer src="https://js.puter.com/v2/"></script>
 </head>
 
 <body>
@@ -571,6 +572,8 @@
     <p class="status-banner" id="authStatus">
       Sign in with Puter, or configure PUTER_AUTH_TOKEN to use keys without sign-in.
     </p>
+    <p class="status-banner" id="renderStatus" role="status">⏳ Renderizando interface no cliente…</p>
+    <noscript><p class="status-banner">⚠️ Ative o JavaScript — esta página renderiza 100% no cliente.</p></noscript>
 
     <nav class="tab-nav" role="tablist" aria-label="API Studio Tabs">
       <button class="tab-btn is-active" data-tab-target="auth" aria-selected="true">Auth</button>
@@ -752,6 +755,19 @@
   </div>
 
   <script>
+    // Client-render guarantee: surface any init failure in-page instead of a silent blank UI.
+    window.addEventListener("error", (e) => {
+      const el = document.getElementById("renderStatus");
+      if (el && !document.documentElement.dataset.clientRendered) {
+        el.textContent = `⚠️ Erro de renderização no cliente: ${e.message || "script error"}`;
+      }
+    });
+    function ensurePuter() {
+      if (typeof puter === "undefined" || !puter?.auth) {
+        throw new Error("Puter.js ainda não carregou (js.puter.com). Aguarde 2s, recarregue a página e tente de novo.");
+      }
+      return puter;
+    }
     const SESSION_STORAGE_KEY = "puter_gateway_session_token";
     const ANALYTICS_EVENT_LIMIT = 150;
 
@@ -1156,8 +1172,8 @@
       try {
         // Force a fresh sign-in popup so the user can pick a different account
         let puterToken = "";
-        const result = await puter.auth.signIn();
-        puterToken = result?.token || puter.authToken || "";
+        const result = await ensurePuter().auth.signIn();
+        puterToken = result?.token || ensurePuter().authToken || "";
 
         if (!puterToken) {
           throw new Error("Could not get Puter token from sign-in.");
@@ -1552,11 +1568,11 @@
 
         const localPuterToken = localStorage.getItem("puter.auth.token") || "";
         let puterToken = "";
-        if (puter.auth.isSignedIn() && puter.authToken) {
+        if (ensurePuter().auth.isSignedIn() && puter.authToken) {
           puterToken = puter.authToken;
         } else {
-          const result = await puter.auth.signIn();
-          puterToken = result?.token || puter.authToken || localPuterToken;
+          const result = await ensurePuter().auth.signIn();
+          puterToken = result?.token || ensurePuter().authToken || localPuterToken;
         }
 
         if (!puterToken) {
@@ -1590,7 +1606,7 @@
       }
 
       try {
-        if (puter.auth.isSignedIn()) {
+        if (ensurePuter().auth.isSignedIn()) {
           puter.auth.signOut();
         }
       } catch {
@@ -1790,6 +1806,9 @@
       setAnalyticsLiveState(`snapshot failed (${error.message})`, "error")
     );
     connectAnalyticsStream();
+    document.documentElement.dataset.clientRendered = "true";
+    const renderEl = document.getElementById("renderStatus");
+    if (renderEl) renderEl.textContent = `✓ Interface renderizada no cliente • Puter.js ${typeof puter !== "undefined" ? "carregado" : "carregando…"} • ${new Date().toLocaleTimeString()}`;
   </script>
 </body>
 
