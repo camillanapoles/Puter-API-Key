@@ -1109,6 +1109,11 @@ if (bootstrapEnabled) {
 }
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+// Access page: always fresh (no stale cached HTML in the preview iframe), any Host allowed.
+app.get(["/", "/index.html"], (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.sendFile(path.join(process.cwd(), "index.html"));
+});
 app.use(express.static("."));
 app.use(trackAnalyticsResponses);
 
