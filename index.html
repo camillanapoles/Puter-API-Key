@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 
 <head>
@@ -551,8 +551,7 @@
       }
     }
   </style>
-  <!-- defer: never block first paint on the Puter CDN. App guards `typeof puter` before use. -->
-  <script defer src="https://js.puter.com/v2/"></script>
+  <script src="https://js.puter.com/v2/"></script>
 </head>
 
 <body>
@@ -572,14 +571,6 @@
     <p class="status-banner" id="authStatus">
       Sign in with Puter, or configure PUTER_AUTH_TOKEN to use keys without sign-in.
     </p>
-    <p class="status-banner" id="renderStatus" role="status">⏳ Renderizando interface no cliente…</p>
-    <div id="captureBox" class="status-banner" style="display:none">
-      <strong>✅ Token Puter capturado e salvo neste navegador</strong> (variável local <code>puter_gateway_puter_token</code>).<br />
-      Cole este token no chat do agente para ele continuar sem novo login:<br />
-      <input id="capturedToken" type="text" readonly style="width:100%;margin:8px 0;font-family:var(--mono)" />
-      <button id="copyTokenBtn" type="button">📋 Copiar token</button>
-    </div>
-    <noscript><p class="status-banner">⚠️ Ative o JavaScript — esta página renderiza 100% no cliente.</p></noscript>
 
     <nav class="tab-nav" role="tablist" aria-label="API Studio Tabs">
       <button class="tab-btn is-active" data-tab-target="auth" aria-selected="true">Auth</button>
@@ -761,19 +752,6 @@
   </div>
 
   <script>
-    // Client-render guarantee: surface any init failure in-page instead of a silent blank UI.
-    window.addEventListener("error", (e) => {
-      const el = document.getElementById("renderStatus");
-      if (el && !document.documentElement.dataset.clientRendered) {
-        el.textContent = `⚠️ Erro de renderização no cliente: ${e.message || "script error"}`;
-      }
-    });
-    function ensurePuter() {
-      if (typeof puter === "undefined" || !puter?.auth) {
-        throw new Error("Puter.js ainda não carregou (js.puter.com). Aguarde 2s, recarregue a página e tente de novo.");
-      }
-      return puter;
-    }
     const SESSION_STORAGE_KEY = "puter_gateway_session_token";
     const ANALYTICS_EVENT_LIMIT = 150;
 
@@ -1178,8 +1156,8 @@
       try {
         // Force a fresh sign-in popup so the user can pick a different account
         let puterToken = "";
-        const result = await ensurePuter().auth.signIn();
-        puterToken = result?.token || ensurePuter().authToken || "";
+        const result = await puter.auth.signIn();
+        puterToken = result?.token || puter.authToken || "";
 
         if (!puterToken) {
           throw new Error("Could not get Puter token from sign-in.");
@@ -1574,32 +1552,21 @@
 
         const localPuterToken = localStorage.getItem("puter.auth.token") || "";
         let puterToken = "";
-        if (ensurePuter().auth.isSignedIn() && puter.authToken) {
+        if (puter.auth.isSignedIn() && puter.authToken) {
           puterToken = puter.authToken;
         } else {
-          const result = await ensurePuter().auth.signIn();
-          puterToken = result?.token || ensurePuter().authToken || localPuterToken;
+          const result = await puter.auth.signIn();
+          puterToken = result?.token || puter.authToken || localPuterToken;
         }
 
         if (!puterToken) {
           throw new Error("Could not get Puter token from sign-in.");
         }
 
-        // Captura continua mesmo sem backend (GitHub Pages): salva o token como variavel local.
-        try {
-          var data = await apiFetch("/auth/puter/signin", {
-            method: "POST",
-            body: JSON.stringify({ puterToken })
-          });
-        } catch (backendError) {
-          localStorage.setItem("puter_gateway_puter_token", puterToken);
-          const box = document.getElementById("captureBox");
-          document.getElementById("capturedToken").value = puterToken;
-          if (box) box.style.display = "block";
-          setStatus("✅ Conectado ao Puter! Token salvo neste navegador — copie no quadro acima e cole no chat do agente.");
-          renderAuth();
-          return;
-        }
+        const data = await apiFetch("/auth/puter/signin", {
+          method: "POST",
+          body: JSON.stringify({ puterToken })
+        });
 
         setSessionToken(data.sessionToken);
         state.user = data.user;
@@ -1623,7 +1590,7 @@
       }
 
       try {
-        if (ensurePuter().auth.isSignedIn()) {
+        if (puter.auth.isSignedIn()) {
           puter.auth.signOut();
         }
       } catch {
@@ -1785,18 +1752,6 @@
       });
     });
 
-    document.getElementById("copyTokenBtn")?.addEventListener("click", async () => {
-      const input = document.getElementById("capturedToken");
-      try { await navigator.clipboard.writeText(input.value); setStatus("📋 Token copiado — cole no chat do agente."); }
-      catch { input.select(); document.execCommand("copy"); setStatus("📋 Token copiado — cole no chat do agente."); }
-    });
-    // Se ja houver token capturado (modo Pages), reexibe o quadro ao abrir.
-    const savedCapture = localStorage.getItem("puter_gateway_puter_token");
-    if (savedCapture) {
-      document.getElementById("capturedToken").value = savedCapture;
-      document.getElementById("captureBox").style.display = "block";
-    }
-
     dom.signInBtn.addEventListener("click", signIn);
     dom.signOutBtn.addEventListener("click", signOut);
     dom.createKeyBtn.addEventListener("click", createKey);
@@ -1835,9 +1790,6 @@
       setAnalyticsLiveState(`snapshot failed (${error.message})`, "error")
     );
     connectAnalyticsStream();
-    document.documentElement.dataset.clientRendered = "true";
-    const renderEl = document.getElementById("renderStatus");
-    if (renderEl) renderEl.textContent = `✓ Interface renderizada no cliente • Puter.js ${typeof puter !== "undefined" ? "carregado" : "carregando…"} • ${new Date().toLocaleTimeString()}`;
   </script>
 </body>
 
