@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "token": "node scripts/get-puter-token.mjs"
+    "token": "node scripts/get-puter-token.mjs",
+    "resume": "node scripts/resume.mjs",
+    "probe:render": "node scripts/render-probe.mjs"
   },
   "dependencies": {
     "@heyputer/puter.js": "^2.1.0",

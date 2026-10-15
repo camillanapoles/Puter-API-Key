@@ -797,6 +797,53 @@ async function getOpenAIModelList(puter) {
   });
 }
 
+// --- Model aliases: `fugu` / `claude-5.6` resolve to the best REAL Puter id ---
+// Puter renames models often, so never hard-code trust: discover via listModels(),
+// cache 10 min, rank by version, and fall back through a chain on invalid_model.
+const MODEL_ALIASES = new Set(["fugu", "fugu-ultra", "claude-5.6", "claude5.6", "claude-latest", "claude"]);
+let modelListCache = { ids: [], at: 0 };
+
+async function discoverModelIds(puter) {
+  if (modelListCache.ids.length && Date.now() - modelListCache.at < 600_000) return modelListCache.ids;
+  try {
+    const models = await puter.ai.listModels();
+    const ids = (Array.isArray(models) ? models : []).map((m) => mapModelRecord(m)?.id).filter(Boolean);
+    if (ids.length) modelListCache = { ids, at: Date.now() };
+    return ids;
+  } catch { return modelListCache.ids; }
+}
+const uniqPush = (arr, v) => { if (v && !arr.includes(v)) arr.push(v); };
+const versionOf = (id) => (id.match(/\d+(?:[.-]\d+)*/g) || []).join(".").split(/[.-]/).map(Number);
+function byVersionDesc(a, b) {
+  const [x, y] = [versionOf(a), versionOf(b)];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((y[i] || 0) !== (x[i] || 0)) return (y[i] || 0) - (x[i] || 0);
+  return 0;
+}
+
+async function buildModelCandidates(requested, puter) {
+  const req = (requested || defaultChatModel).toString().trim();
+  const lower = req.toLowerCase();
+  const isAlias = MODEL_ALIASES.has(lower) || lower.includes("fugu") || /claude[- ]?5\.6/.test(lower);
+  if (!isAlias) return [req];
+  const ids = puter ? await discoverModelIds(puter) : [];
+  const out = [];
+  if (lower.includes("fugu")) {
+    ids.filter((i) => i.toLowerCase().includes("fugu"))
+      .sort((a, b) => (b.toLowerCase().includes("ultra") - a.toLowerCase().includes("ultra")) || byVersionDesc(a, b))
+      .forEach((i) => uniqPush(out, i));
+    uniqPush(out, "fugu-ultra"); uniqPush(out, "fugu");
+  } else { // claude family: highest version first, sonnet preferred on ties
+    ids.filter((i) => i.toLowerCase().includes("claude"))
+      .sort((a, b) => byVersionDesc(a, b) || (b.toLowerCase().includes("sonnet") - a.toLowerCase().includes("sonnet")))
+      .forEach((i) => uniqPush(out, i));
+  }
+  // Fallback chain (only reached if the preferred model errors as invalid_model)
+  ids.filter((i) => i.toLowerCase().includes("claude")).sort(byVersionDesc).slice(0, 1).forEach((i) => uniqPush(out, i));
+  uniqPush(out, "claude-sonnet-4-5"); uniqPush(out, defaultChatModel); uniqPush(out, "gpt-5-nano");
+  return out;
+}
+const isInvalidModelError = (e) => mapProviderError(e).type === "invalid_model";
+
 function mapProviderError(error) {
   const status =
     Number(
@@ -1062,6 +1109,11 @@ if (bootstrapEnabled) {
 }
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+// Access page: always fresh (no stale cached HTML in the preview iframe), any Host allowed.
+app.get(["/", "/index.html"], (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.sendFile(path.join(process.cwd(), "index.html"));
+});
 app.use(express.static("."));
 app.use(trackAnalyticsResponses);
 
@@ -1361,6 +1413,11 @@ async function handleModelsRequest(req, res) {
 
     const requestedModelId =
       typeof req.params?.model === "string" ? req.params.model.trim() : "";
+
+    // Expose stable aliases (resolved dynamically at chat time)
+    for (const alias of ["fugu", "claude-5.6"]) {
+      if (!data.some((m) => m.id === alias)) data.unshift({ id: alias, object: "model", created: 0, owned_by: "puter-alias" });
+    }
 
     if (requestedModelId) {
       const match = data.find((model) => model.id === requestedModelId);
@@ -1831,13 +1888,9 @@ async function handleChatCompletions(req, res) {
     }
 
     let raw;
-    if (useFallback) {
-      raw = await callWithFallback(async (puter) => {
-        return puter.ai.chat(input, options);
-      });
-    } else {
-      const puter = getPuterClient(owner.puterToken);
-      raw = await puter.ai.chat(input, options);
+    for (let i = 0; i < candidates.length; i++) {
+      try { raw = await chatOnce(candidates[i]); model = candidates[i]; break; }
+      catch (e) { if (isInvalidModelError(e) && i < candidates.length - 1) continue; throw e; }
     }
     const content = normalizeModelOutput(raw);
 
@@ -1891,4 +1944,3 @@ app.post("/chat/completions", handleChatCompletions);
 app.listen(port, () => {
   console.log(`Gateway running on http://localhost:${port}`);
 });
-
