@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "date": "2026-10-16",
+    "omp_version": "omp/18.11.1 (npm @oh-my-pi/pi-coding-agent, requer bun 1.4.3)",
+    "freellmapi_ref": "github.com/tashfeenahmed/freellmapi @ main (908 commits)",
+    "harness": "research/freellmapi-omp/tools/mock-freellmapi.mjs (Node, porta 3001) gravando cada requisição do omp em tools/captured/*.json",
+    "env": "PI_CODING_AGENT_DIR=<dir de teste>, FREELLMAPI_API_KEY=freellmapi-test-key"
+  },
+  "findings": [
+    {
+      "id": "wire-shape",
+      "claim": "O omp fala OpenAI Chat Completions com o provider declarado: POST /v1/chat/completions, Authorization Bearer, UA próprio.",
+      "command": "omp -p --no-session --model freellmapi/auto \"Reply with only OK\"",
+      "observed": {
+        "url": "/v1/chat/completions",
+        "headers": ["authorization: Bearer <chave>", "user-agent: omp/18.11.1", "accept: text/event-stream"],
+        "body_keys": ["model", "messages", "stream", "stream_options", "tools", "max_completion_tokens", "reasoning_effort"],
+        "model": "auto",
+        "max_completion_tokens": 30000,
+        "reasoning_effort": "high",
+        "tools": 11,
+        "tool_names": ["read", "bash", "edit", "eval", "glob", "grep", "task", "wait", "todo", "web_search", "write"],
+        "tools_with_strict_true": 0,
+        "stream_options": { "include_usage": true },
+        "system_prompt_chars": 10368
+      }
+    },
+    {
+      "id": "discovery-reads-context-window",
+      "claim": "Com discovery openai-models-list, o omp lê context_window/context_length do /v1/models do gateway e cruza o id com o catálogo embutido.",
+      "command": "omp models freellmapi  (models.yml só com discovery)",
+      "observed": {
+        "listed": ["auto (1M)", "auto:coding (262K)", "claude-sonnet-4-5 (200K, identidade anthropic, tokenizer claude-v3, max-out 64K)", "deepseek-v4-flash (131K, tokenizer deepseek-v3)", "gemini-3.6-flash (1M, identidade gemini)"],
+        "cache": "~/.omp/agent/models.db :: model_cache.provider_id = freellmapi:openai-models-list-context-v4",
+        "unknown_id_defaults": "auto:coding ficou reasoning=false, input=[text], maxTokens=32768"
+      }
+    },
+    {
+      "id": "auto-id-capability-collision",
+      "claim": "O id virtual `auto` herdou reasoning+visão do catálogo embutido de outros fornecedores, e o omp passou a enviar reasoning_effort e a marcá-lo como vision.",
+      "command": "omp models freellmapi  ->  coluna thinking='minimal,low,medium,high,xhigh' e images='yes' para o id auto",
+      "observed": {
+        "sent_on_wire": { "reasoning_effort": "high" },
+        "fix": "declarar `auto` explicitamente com reasoning:false e input:[text] (o request passa a não ter reasoning_effort)"
+      }
+    },
+    {
+      "id": "gateway-down-with-discovery",
+      "claim": "Com discovery e o gateway fora do ar, o provider some do omp no boot.",
+      "command": "omp models freellmapi ; omp -p --no-session --model freellmapi/auto \"Say OK\"   (mock desligado)",
+      "observed": [
+        "No models available. Set API keys in environment variables.",
+        "Model \"freellmapi/auto\" not found  +  sugestão de 'create <agentDir>/models.yml' (que já existia)"
+      ]
+    },
+    {
+      "id": "gateway-down-with-explicit-models",
+      "claim": "Com lista explícita de models, o provider continua disponível sem o gateway; a falha acontece só na hora do request.",
+      "command": "omp models freellmapi   (mock desligado, models.yml com models explícitos)",
+      "observed": ["tabela listou auto e claude-sonnet-4-5 normalmente", "o turno ficou pendurado até o timeout do cliente (ECONNREFUSED / sem resposta)"]
+    },
+    {
+      "id": "colon-ids",
+      "claim": "Ids com ':' não são selecionáveis por --model escrito literalmente (parser lê ':sufixo' como thinking level); funcionam via modelRoles e via alias de role (@role).",
+      "command": "omp -p --model freellmapi/auto:coding ...  vs  modelRoles.default: freellmapi/auto:coding  vs  omp -p --model @slow",
+      "observed": {
+        "cli_literal": "Model \"freellmapi/auto:coding\" not found (idem para auto:coding, ...:off, ...:auto)",
+        "role_config": "corpo na rede levou \"model\": \"auto:coding\"",
+        "role_alias_cli": "omp -p --model @slow -> corpo na rede levou \"model\": \"auto:coding\"",
+        "config_check": "omp config get modelRoles -> {\"default\":\"freellmapi/auto\",\"slow\":\"freellmapi/auto:coding\",...}"
+      }
+    },
+    {
+      "id": "explicit-metadata-controls-the-body",
+      "claim": "maxTokens declarado controla max_completion_tokens; reasoning:false remove reasoning_effort.",
+      "command": "omp -p --model freellmapi/auto \"Reply with only OK\"  (models.yml com maxTokens: 32000 e reasoning: false)",
+      "observed": { "max_completion_tokens": 32000, "reasoning_effort": null }
+    },
+    {
+      "id": "provider-headers",
+      "claim": "Headers do provider são aplicados em todo request.",
+      "command": "headers: { User-Agent: pi-coding-agent, X-FreeLLM-Task-Type: code }",
+      "observed": ["user-agent: pi-coding-agent", "x-freellm-task-type: code"]
+    },
+    {
+      "id": "tool-loop",
+      "claim": "O loop de tool calling funciona em streaming: deltas de tool_calls -> execução -> follow-up com role tool.",
+      "command": "omp -p --no-session --approval-mode yolo \"TOOLTEST: run the command I asked for\"",
+      "observed": {
+        "turn_1": "SSE com delta.tool_calls (bash) e finish_reason=tool_calls",
+        "turn_2": "messages = system,user,assistant(content:'', tool_calls=[{id: 'call_mock_1', ...}]),tool(tool_call_id: 'call_mock_1', content: 'omp-tool-loop-ok')",
+        "output": "DONE"
+      }
+    }
+  ],
+  "notes": [
+    "Respostas SSE/JSON completas não são versionadas (o system prompt tem ~10 KB por turno); este arquivo é o resumo auditável, e o mock permite recapturar tudo.",
+    "Não foi possível testar com free tiers reais neste sandbox (sem chaves de provider e sem saída para as APIs deles); toda a parte do gateway vem de leitura de código + documentação do próprio repositório."
+  ]
+}

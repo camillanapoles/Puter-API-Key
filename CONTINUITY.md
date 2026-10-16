@@ -76,6 +76,33 @@ npm run probe:render        # requer servidor no ar; espera RENDER-PROBE: PASS
   gateway configurado pelo usuário.
 - `data/api-store.json` e `.env` seguem no `.gitignore`.
 
+## Entrega paralela: FreeLLMAPI × oh-my-pi (omp) — 2026-10-16
+
+Investigação pedida pelo usuário, entregue em `research/freellmapi-omp/`:
+
+- `01-freellmapi-conexao-e-otimizacao.md` — como o gateway do tashfeenahmed/freellmapi conecta
+  (auth, superfícies `/v1/*`, router bandit, failover, rate ledger, camada de compatibilidade,
+  sticky/handoff) e 12 alavancas de otimização com o arquivo/env de cada uma.
+- `02-oh-my-pi-omp-estudo.md` — estudo do agent `omp` (fork do Pi): camadas de config, registry de
+  modelos, roles, fluxo real de uma requisição e **pegadinhas medidas**.
+- `03-integrar-omp-no-freellmapi.md` — receita definitiva + troubleshooting.
+- `configs/` e `tools/` (mock do gateway que grava o tráfego) + `tools/evidence.json`.
+- `scripts/setup-omp-freellmapi.mjs` (+ `scripts/setup-omp-freellmapi.test.mjs`, `npm run setup:omp`
+  e `npm run test:setup-omp`).
+
+Achados que decidem a integração (todos reproduzidos neste sandbox, `omp/18.11.1`):
+
+1. `omp` + provider `api: openai-completions` + `baseUrl .../v1` fala direto com o gateway.
+2. `discovery:` no `models.yml` **derruba o provider** quando o gateway está fora do ar no boot
+   (*"No models available. Set API keys…"*) — por isso a config recomendada usa **lista explícita**.
+3. Ids com `:` (`auto:coding`) não resolvem por `--model` literal, mas funcionam via `modelRoles`
+   e via alias de role (`--model @slow`).
+4. O id virtual `auto` herda reasoning+visão do catálogo embutido do omp se não for declarado
+   explicitamente (`reasoning: false`, `input: [text]`).
+5. O gateway normaliza o que o omp envia (`max_completion_tokens`, `reasoning_effort` fora de
+   escala, `developer`→`system`) e o UA `omp/x` precisa virar `pi-coding-agent` para aparecer no
+   dashboard.
+
 ## Estado desta entrega
 
 - Renderização no cliente blindada: `defer` no CDN do Puter, `ensurePuter()` com

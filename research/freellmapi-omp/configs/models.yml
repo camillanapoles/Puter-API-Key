@@ -1,0 +1,113 @@
+# ~/.omp/agent/models.yml  —  provider FreeLLMAPI para o omp
+#
+# Copie este arquivo para ~/.omp/agent/models.yml (ou rode
+# `node scripts/setup-omp-freellmapi.mjs --url ... --api-key ...`, que faz o merge
+# e o backup por você). Depois valide com:
+#     omp models freellmapi
+#     omp -p --no-session --model freellmapi/auto "Reply with only OK"
+#
+# Por que lista explícita e não `discovery`:
+#   * discovery faz o provider DESAPARECER quando o gateway está fora do ar no
+#     boot do omp (ele lista zero modelos e ainda sugere "set an API key env var");
+#   * discovery funde o id com o catálogo embutido do omp e pode inventar
+#     capacidade (o id virtual `auto` herdou reasoning+visão de outros vendors);
+#   * lista explícita é determinística: contexto, saída, tools e thinking são
+#     exatamente o que você declarou.
+# A variante com discovery está comentada no fim do arquivo.
+
+providers:
+  freellmapi:
+    name: FreeLLMAPI
+    # O gateway expõe OpenAI-compatible em :3001; o cliente precisa do /v1 no fim.
+    # Se o omp roda na mesma máquina, 127.0.0.1 é o caminho mais curto.
+    baseUrl: http://127.0.0.1:3001/v1
+    api: openai-completions
+    # O valor é o NOME de uma env var (lida de ~/.omp/agent/.env, ~/.omp/.env,
+    # ~/.env, $PWD/.env ou do shell). ⚠ Se a variável não existir, o omp usa o
+    # TEXTO "FREELLMAPI_API_KEY" como chave literal -> 401 no gateway.
+    apiKey: FREELLMAPI_API_KEY
+    headers:
+      # O classificador de cliente do FreeLLMAPI conhece `pi-coding-agent`/`pi/x`
+      # e NÃO conhece `omp/x`; com esta linha o dashboard marca o agente como Pi
+      # ("visto recentemente", analytics por cliente).
+      User-Agent: pi-coding-agent
+      # Enviesa 30% de um eixo de peso do router para código. O gateway já infere
+      # `code` quando vê tools[], então isto é reforço explícito.
+      X-FreeLLM-Task-Type: code
+
+    models:
+      # ── Roteador do gateway: segue a cadeia ATIVA do dashboard ──────────────
+      - id: auto
+        name: FreeLLMAPI Auto
+        # reasoning:false = o omp não envia reasoning_effort (a cadeia pode
+        # conter modelos que não aceitam o parâmetro).
+        reasoning: false
+        # text-only por padrão: `auto` pode cair em modelo sem visão.
+        input: [text]
+        supportsTools: true
+        # Contexto HONESTO: o gateway só roteia para modelos que caibam no
+        # prompt, então declarar menos que o teto evita estourar modelos
+        # pequenos no fim do dia (quando as cotas boas acabam).
+        contextWindow: 200000
+        maxTokens: 32000
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+
+      # ── Perfis (cadeias nomeadas) do gateway ────────────────────────────────
+      # Crie os perfis na página Fallback do dashboard com o nome em minúsculas;
+      # o id exposto é `auto:<nome>`. ⚠ Ids com `:` NÃO são selecionáveis por
+      # `--model` no omp (o parser lê `:sufixo` como thinking level) — use-os por
+      # ROLE, no config.yml:  modelRoles.default: freellmapi/auto:coding
+      - id: auto:coding
+        name: FreeLLMAPI Auto — cadeia de código
+        reasoning: false
+        input: [text]
+        supportsTools: true
+        contextWindow: 200000
+        maxTokens: 32000
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+
+      - id: auto:fast
+        name: FreeLLMAPI Auto — cadeia rápida (smol/commit/tiny)
+        reasoning: false
+        input: [text]
+        supportsTools: true
+        contextWindow: 128000
+        maxTokens: 16000
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+
+      # ── Ids reais, para quando você QUER prender um modelo específico ───────
+      # Descubra quais existem e estão utilizáveis agora:
+      #   curl -s "http://127.0.0.1:3001/v1/models?execution_status=ready" \
+      #     -H "Authorization: Bearer $FREELLMAPI_API_KEY" | jq -r '.data[].id'
+      # Um id real prende o modelo (sem failover do gateway) — bom para
+      # reproduzir um bug ou comparar qualidade.
+      - id: claude-sonnet-4-5
+        name: Claude Sonnet 4.5 (via gateway)
+        reasoning: false
+        input: [text, image]      # o modelo e a cota do provider permitem visão
+        supportsTools: true
+        contextWindow: 200000
+        maxTokens: 32000
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VARIANTE COM DESCOBERTA AUTOMÁTICA (catálogo do gateway, incluindo auto:<perfil>)
+# Use se você prefere que o omp acompanhe o catálogo sozinho. Lembre: o provider
+# só aparece se o gateway estiver no ar durante o boot do omp.
+#
+# providers:
+#   freellmapi:
+#     name: FreeLLMAPI
+#     baseUrl: http://127.0.0.1:3001/v1
+#     api: openai-completions
+#     apiKey: FREELLMAPI_API_KEY
+#     discovery:
+#       type: openai-models-list
+#       timeoutMs: 8000
+#     # corrige o palpite que o omp faz para o id `auto` (herdado de outros vendor)
+#     modelOverrides:
+#       auto:
+#         reasoning: false
+#         input: [text]
+#         contextWindow: 200000
+#         maxTokens: 32000

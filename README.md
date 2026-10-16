@@ -143,6 +143,15 @@ Compatibility notes:
 - `POST /v1/chat/completions` now returns standard OpenAI-style JSON only (`choices[0].message.content`), with no custom `raw` field.
 - `stream: true` is supported with SSE chunks and `[DONE]`, which Roo Code expects.
 
+## Usar como provider de um coding agent
+
+Qualquer cliente OpenAI-compatível funciona (base URL `{gateway}/v1`, chave `sk-...`). Se você quer
+plugar isto num agente específico, o exercício equivalente foi feito para o **oh-my-pi (`omp`)** com
+o gateway FreeLLMAPI: veja [`research/freellmapi-omp/`](research/freellmapi-omp/README.md)
+(conexão, otimização, pegadinhas medidas) e o gerador
+[`scripts/setup-omp-freellmapi.mjs`](scripts/setup-omp-freellmapi.mjs) (`npm run setup:omp`,
+testes em `npm run test:setup-omp`).
+
 ## Notes
 
 - Keys can be copied any time from the dashboard.

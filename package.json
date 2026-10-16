@@ -8,7 +8,9 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "token": "node scripts/get-puter-token.mjs",
-    "probe:render": "node scripts/render-probe.mjs"
+    "probe:render": "node scripts/render-probe.mjs",
+    "setup:omp": "node scripts/setup-omp-freellmapi.mjs",
+    "test:setup-omp": "node --test scripts/setup-omp-freellmapi.test.mjs"
   },
   "dependencies": {
     "@heyputer/puter.js": "^2.1.0",

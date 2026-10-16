@@ -1,0 +1,50 @@
+# ~/.omp/agent/config.yml — trecho relevante para usar o omp com o FreeLLMAPI.
+#
+# Faça merge disto no SEU config.yml (não copie por cima): o arquivo guarda muita
+# coisa (tema, compaction, approvals, tools…). `omp config set <chave> <valor>` e
+# `/settings` escrevem no lugar certo; `omp config list --json` mostra o efetivo.
+# Alias de role: `@role` (o legado `pi/role` ainda é aceito).
+
+# Rotas de trabalho -> modelos do gateway.
+# `auto` segue a cadeia ativa; `auto:<perfil>` prende a uma cadeia nomeada.
+modelRoles:
+  # Sessão normal: deixa o gateway escolher (o pool muda ao longo do dia).
+  default: freellmapi/auto
+  # Cadeia curada de código — só funciona aqui (e não em --model) porque tem `:`.
+  slow: freellmapi/auto:coding
+  plan: freellmapi/auto:coding
+  # Trabalho leve: cadeia rápida, que é onde a latência dói.
+  smol: freellmapi/auto:fast
+  tiny: freellmapi/auto:fast
+  commit: freellmapi/auto:fast
+  task: freellmapi/auto
+  # Visão: aponte para um id real com `input: [text, image]` declarado.
+  vision: freellmapi/claude-sonnet-4-5
+
+# Ordem do ciclo Ctrl+P (só entram roles com atribuição utilizável).
+cycleOrder:
+  - smol
+  - default
+  - slow
+
+# Nível de thinking padrão do agente. Com modelos declarados `reasoning: false`
+# o campo nem é enviado; quem decide o esforço é o modelo que o router servir.
+defaultThinkingLevel: high
+
+# Concorrência por provider. Subagents/worktrees paralelos batem no gateway:
+# combine com PROXY_RATE_LIMIT_RPM no FreeLLMAPI (padrão 120/min por IP).
+providers:
+  maxInFlightRequests:
+    freellmapi: 4
+
+# Compactação: como o `contextWindow` declarado manda no medidor de contexto,
+# um valor honesto + compactação em 80% evita estourar modelos pequenos.
+compaction:
+  enabled: true
+  thresholdPercent: 80
+
+# Se o repositório tiver outros providers configurados, desligue-os aqui para o
+# agente não escapar para fora da cadeia do gateway sem você notar.
+# disabledProviders:
+#   - anthropic
+#   - openai
